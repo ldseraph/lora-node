@@ -1,0 +1,23 @@
+config SOC_SERIES_GD32E10X
+   bool
+   default n
+   select RT_USING_COMPONENTS_INIT
+   select RT_USING_SERIAL
+
+choice BSP_USING_SERIAL
+   depends on SOC_SERIES_GD32E10X
+   prompt "RT using serial"
+   default BSP_USING_UART1
+   config BSP_USING_UART0
+      bool "uart0"
+   config BSP_USING_UART1
+      bool "uart1"
+endchoice
+
+config BSP_USING_ADC0
+   bool
+   default n
+
+config BSP_USING_ADC1
+   bool
+   default n

@@ -1,0 +1,16 @@
+from building import *
+
+# get current directory
+cwd = GetCurrentDir()
+
+src = []
+CPPDEFINES = []
+CPPPATH = []
+
+if GetDepend('RT_USING_BQ24040'):
+    src += ['bq24040.c']
+    CPPPATH += ['./']
+
+group = DefineGroup('bq24040', src, depend = [''], CPPPATH = CPPPATH)
+
+Return('group')

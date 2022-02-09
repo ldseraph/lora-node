@@ -1,0 +1,9 @@
+.sconsign.dblite
+cconfig.h
+rtconfig.h
+*.map
+*.elf
+*.bin
+*.objdump
+__pycache__/
+build/

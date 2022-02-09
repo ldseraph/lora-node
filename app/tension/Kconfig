@@ -1,0 +1,18 @@
+config APP_COMPONENTS_TENSION
+  bool
+  default n
+  select RT_USING_BQ24040
+  select RT_USING_ADS1232
+  select RT_USING_PIN
+
+menu "Tension APP"
+  depends on APP_COMPONENTS_TENSION
+# TODO dts
+  choice APP_COMPONENTS_TENSION_ADC
+    prompt "tension using adc"
+    default BSP_USING_ADC0
+    config BSP_USING_ADC0
+      bool "adc0"
+  endchoice
+
+endmenu

@@ -1,0 +1,22 @@
+config RT_USING_LORAWAN
+  bool
+  default n
+
+menu "Lorawan"
+  depends on RT_USING_LORAWAN
+
+  choice RT_USING_LORAWAN_FREQUENCY_PLANS
+  depends on RT_USING_LORAWAN
+  prompt "Lorawan frqeuency plans"
+  default RT_USING_LORAWAN_FREQUENCY_PLANS_CN470
+
+  config RT_USING_LORAWAN_FREQUENCY_PLANS_CN470
+    bool "cn470"
+
+  endchoice
+
+endmenu
+
+
+
+

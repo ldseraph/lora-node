@@ -1,0 +1,38 @@
+import rtconfig
+Import('RTT_ROOT')
+from building import *
+
+# get current directory
+cwd = GetCurrentDir()
+objs = []
+list = os.listdir(cwd)
+
+for d in list:
+    path = os.path.join(cwd, d)
+    if os.path.isfile(os.path.join(path, 'SConscript')):
+        objs = objs + SConscript(os.path.join(d, 'SConscript'))
+
+src = []
+CPPPATH = []
+CPPDEFINES = []
+
+if GetDepend('SOC_SERIES_GD32E10X'):
+    src = Glob('Library/GD32E10x_standard_peripheral/Source/*.c')
+    src += ['Library/CMSIS/GD/GD32E10x/Source/system_gd32e10x.c']
+
+    if rtconfig.CROSS_TOOL == 'gcc':
+        src = src + ['./startup/gcc/startup_gd32e10x.s']
+
+    CPPPATH = [
+        'Library/CMSIS/GD/GD32E10x/Include',
+        'Library/CMSIS',
+        'Library/GD32E10x_standard_peripheral/Include',
+        'drivers',
+    ]
+
+    CPPDEFINES = ['GD32E103V_EVAL']
+
+group = DefineGroup('GD32_Lib', src, depend = [''], CPPPATH = CPPPATH, CPPDEFINES = CPPDEFINES)
+
+group = objs + group
+Return('group')

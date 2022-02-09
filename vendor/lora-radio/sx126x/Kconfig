@@ -1,0 +1,5 @@
+config RT_USING_SX126X
+  bool
+  default n
+  select RT_USING_SPI
+  select RT_USING_PIN

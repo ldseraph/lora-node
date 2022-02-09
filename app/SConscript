@@ -1,0 +1,20 @@
+import rtconfig
+Import('RTT_ROOT')
+from building import *
+
+cwd = GetCurrentDir()
+
+src = ['./main.c']
+CPPPATH = ['./']
+CPPDEFINES = []
+
+if GetDepend('APP_COMPONENTS_TENSION'):
+    src += Glob('./tension/tension_app.c')
+    CPPPATH += ['./tension']
+
+if GetDepend('RT_USING_LORAWAN'):
+    src += Glob('./lorawan_app.c')
+
+group = DefineGroup('main', src, depend = CPPDEFINES, CPPPATH = CPPPATH)
+
+Return('group')

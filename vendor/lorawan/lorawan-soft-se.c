@@ -1,0 +1,366 @@
+#include <lorawan.h>
+
+#ifndef MIN
+#define MIN(a, b) (((a) < (b)) ? (a) : (b))
+#endif
+
+#define XOR(v, r)               \
+  do {                          \
+    int32_t i;                  \
+    for (i = 0; i < 16; i++) {  \
+      (r)[i] = (r)[i] ^ (v)[i]; \
+    }                           \
+  } while (0)
+
+#define LSHIFT(v, r)                          \
+  do {                                        \
+    int32_t i;                                \
+    for (i = 0; i < 15; i++)                  \
+      (r)[i] = (v)[i] << 1 | (v)[i + 1] >> 7; \
+    (r)[15] = (v)[15] << 1;                   \
+  } while (0)
+
+#define WPOLY 0x011b
+#define BPOLY 0x1b
+#define DPOLY 0x008d
+
+#define f1(x) (x)
+#define f2(x) ((x << 1) ^ (((x >> 7) & 1) * WPOLY))
+#define f3(x) (f2(x) ^ x)
+
+#define sb_data(w)                                                            \
+  { /* S Box data values */                                                   \
+    w(0x63), w(0x7c), w(0x77), w(0x7b), w(0xf2), w(0x6b), w(0x6f), w(0xc5),   \
+      w(0x30), w(0x01), w(0x67), w(0x2b), w(0xfe), w(0xd7), w(0xab), w(0x76), \
+      w(0xca), w(0x82), w(0xc9), w(0x7d), w(0xfa), w(0x59), w(0x47), w(0xf0), \
+      w(0xad), w(0xd4), w(0xa2), w(0xaf), w(0x9c), w(0xa4), w(0x72), w(0xc0), \
+      w(0xb7), w(0xfd), w(0x93), w(0x26), w(0x36), w(0x3f), w(0xf7), w(0xcc), \
+      w(0x34), w(0xa5), w(0xe5), w(0xf1), w(0x71), w(0xd8), w(0x31), w(0x15), \
+      w(0x04), w(0xc7), w(0x23), w(0xc3), w(0x18), w(0x96), w(0x05), w(0x9a), \
+      w(0x07), w(0x12), w(0x80), w(0xe2), w(0xeb), w(0x27), w(0xb2), w(0x75), \
+      w(0x09), w(0x83), w(0x2c), w(0x1a), w(0x1b), w(0x6e), w(0x5a), w(0xa0), \
+      w(0x52), w(0x3b), w(0xd6), w(0xb3), w(0x29), w(0xe3), w(0x2f), w(0x84), \
+      w(0x53), w(0xd1), w(0x00), w(0xed), w(0x20), w(0xfc), w(0xb1), w(0x5b), \
+      w(0x6a), w(0xcb), w(0xbe), w(0x39), w(0x4a), w(0x4c), w(0x58), w(0xcf), \
+      w(0xd0), w(0xef), w(0xaa), w(0xfb), w(0x43), w(0x4d), w(0x33), w(0x85), \
+      w(0x45), w(0xf9), w(0x02), w(0x7f), w(0x50), w(0x3c), w(0x9f), w(0xa8), \
+      w(0x51), w(0xa3), w(0x40), w(0x8f), w(0x92), w(0x9d), w(0x38), w(0xf5), \
+      w(0xbc), w(0xb6), w(0xda), w(0x21), w(0x10), w(0xff), w(0xf3), w(0xd2), \
+      w(0xcd), w(0x0c), w(0x13), w(0xec), w(0x5f), w(0x97), w(0x44), w(0x17), \
+      w(0xc4), w(0xa7), w(0x7e), w(0x3d), w(0x64), w(0x5d), w(0x19), w(0x73), \
+      w(0x60), w(0x81), w(0x4f), w(0xdc), w(0x22), w(0x2a), w(0x90), w(0x88), \
+      w(0x46), w(0xee), w(0xb8), w(0x14), w(0xde), w(0x5e), w(0x0b), w(0xdb), \
+      w(0xe0), w(0x32), w(0x3a), w(0x0a), w(0x49), w(0x06), w(0x24), w(0x5c), \
+      w(0xc2), w(0xd3), w(0xac), w(0x62), w(0x91), w(0x95), w(0xe4), w(0x79), \
+      w(0xe7), w(0xc8), w(0x37), w(0x6d), w(0x8d), w(0xd5), w(0x4e), w(0xa9), \
+      w(0x6c), w(0x56), w(0xf4), w(0xea), w(0x65), w(0x7a), w(0xae), w(0x08), \
+      w(0xba), w(0x78), w(0x25), w(0x2e), w(0x1c), w(0xa6), w(0xb4), w(0xc6), \
+      w(0xe8), w(0xdd), w(0x74), w(0x1f), w(0x4b), w(0xbd), w(0x8b), w(0x8a), \
+      w(0x70), w(0x3e), w(0xb5), w(0x66), w(0x48), w(0x03), w(0xf6), w(0x0e), \
+      w(0x61), w(0x35), w(0x57), w(0xb9), w(0x86), w(0xc1), w(0x1d), w(0x9e), \
+      w(0xe1), w(0xf8), w(0x98), w(0x11), w(0x69), w(0xd9), w(0x8e), w(0x94), \
+      w(0x9b), w(0x1e), w(0x87), w(0xe9), w(0xce), w(0x55), w(0x28), w(0xdf), \
+      w(0x8c), w(0xa1), w(0x89), w(0x0d), w(0xbf), w(0xe6), w(0x42), w(0x68), \
+      w(0x41), w(0x99), w(0x2d), w(0x0f), w(0xb0), w(0x54), w(0xbb), w(0x16)  \
+  }
+
+#define isb_data(w)                                                           \
+  { /* inverse S Box data values */                                           \
+    w(0x52), w(0x09), w(0x6a), w(0xd5), w(0x30), w(0x36), w(0xa5), w(0x38),   \
+      w(0xbf), w(0x40), w(0xa3), w(0x9e), w(0x81), w(0xf3), w(0xd7), w(0xfb), \
+      w(0x7c), w(0xe3), w(0x39), w(0x82), w(0x9b), w(0x2f), w(0xff), w(0x87), \
+      w(0x34), w(0x8e), w(0x43), w(0x44), w(0xc4), w(0xde), w(0xe9), w(0xcb), \
+      w(0x54), w(0x7b), w(0x94), w(0x32), w(0xa6), w(0xc2), w(0x23), w(0x3d), \
+      w(0xee), w(0x4c), w(0x95), w(0x0b), w(0x42), w(0xfa), w(0xc3), w(0x4e), \
+      w(0x08), w(0x2e), w(0xa1), w(0x66), w(0x28), w(0xd9), w(0x24), w(0xb2), \
+      w(0x76), w(0x5b), w(0xa2), w(0x49), w(0x6d), w(0x8b), w(0xd1), w(0x25), \
+      w(0x72), w(0xf8), w(0xf6), w(0x64), w(0x86), w(0x68), w(0x98), w(0x16), \
+      w(0xd4), w(0xa4), w(0x5c), w(0xcc), w(0x5d), w(0x65), w(0xb6), w(0x92), \
+      w(0x6c), w(0x70), w(0x48), w(0x50), w(0xfd), w(0xed), w(0xb9), w(0xda), \
+      w(0x5e), w(0x15), w(0x46), w(0x57), w(0xa7), w(0x8d), w(0x9d), w(0x84), \
+      w(0x90), w(0xd8), w(0xab), w(0x00), w(0x8c), w(0xbc), w(0xd3), w(0x0a), \
+      w(0xf7), w(0xe4), w(0x58), w(0x05), w(0xb8), w(0xb3), w(0x45), w(0x06), \
+      w(0xd0), w(0x2c), w(0x1e), w(0x8f), w(0xca), w(0x3f), w(0x0f), w(0x02), \
+      w(0xc1), w(0xaf), w(0xbd), w(0x03), w(0x01), w(0x13), w(0x8a), w(0x6b), \
+      w(0x3a), w(0x91), w(0x11), w(0x41), w(0x4f), w(0x67), w(0xdc), w(0xea), \
+      w(0x97), w(0xf2), w(0xcf), w(0xce), w(0xf0), w(0xb4), w(0xe6), w(0x73), \
+      w(0x96), w(0xac), w(0x74), w(0x22), w(0xe7), w(0xad), w(0x35), w(0x85), \
+      w(0xe2), w(0xf9), w(0x37), w(0xe8), w(0x1c), w(0x75), w(0xdf), w(0x6e), \
+      w(0x47), w(0xf1), w(0x1a), w(0x71), w(0x1d), w(0x29), w(0xc5), w(0x89), \
+      w(0x6f), w(0xb7), w(0x62), w(0x0e), w(0xaa), w(0x18), w(0xbe), w(0x1b), \
+      w(0xfc), w(0x56), w(0x3e), w(0x4b), w(0xc6), w(0xd2), w(0x79), w(0x20), \
+      w(0x9a), w(0xdb), w(0xc0), w(0xfe), w(0x78), w(0xcd), w(0x5a), w(0xf4), \
+      w(0x1f), w(0xdd), w(0xa8), w(0x33), w(0x88), w(0x07), w(0xc7), w(0x31), \
+      w(0xb1), w(0x12), w(0x10), w(0x59), w(0x27), w(0x80), w(0xec), w(0x5f), \
+      w(0x60), w(0x51), w(0x7f), w(0xa9), w(0x19), w(0xb5), w(0x4a), w(0x0d), \
+      w(0x2d), w(0xe5), w(0x7a), w(0x9f), w(0x93), w(0xc9), w(0x9c), w(0xef), \
+      w(0xa0), w(0xe0), w(0x3b), w(0x4d), w(0xae), w(0x2a), w(0xf5), w(0xb0), \
+      w(0xc8), w(0xeb), w(0xbb), w(0x3c), w(0x83), w(0x53), w(0x99), w(0x61), \
+      w(0x17), w(0x2b), w(0x04), w(0x7e), w(0xba), w(0x77), w(0xd6), w(0x26), \
+      w(0xe1), w(0x69), w(0x14), w(0x63), w(0x55), w(0x21), w(0x0c), w(0x7d)  \
+  }
+
+#define mm_data(w)                                                            \
+  { /* basic data for forming finite field tables */                          \
+    w(0x00), w(0x01), w(0x02), w(0x03), w(0x04), w(0x05), w(0x06), w(0x07),   \
+      w(0x08), w(0x09), w(0x0a), w(0x0b), w(0x0c), w(0x0d), w(0x0e), w(0x0f), \
+      w(0x10), w(0x11), w(0x12), w(0x13), w(0x14), w(0x15), w(0x16), w(0x17), \
+      w(0x18), w(0x19), w(0x1a), w(0x1b), w(0x1c), w(0x1d), w(0x1e), w(0x1f), \
+      w(0x20), w(0x21), w(0x22), w(0x23), w(0x24), w(0x25), w(0x26), w(0x27), \
+      w(0x28), w(0x29), w(0x2a), w(0x2b), w(0x2c), w(0x2d), w(0x2e), w(0x2f), \
+      w(0x30), w(0x31), w(0x32), w(0x33), w(0x34), w(0x35), w(0x36), w(0x37), \
+      w(0x38), w(0x39), w(0x3a), w(0x3b), w(0x3c), w(0x3d), w(0x3e), w(0x3f), \
+      w(0x40), w(0x41), w(0x42), w(0x43), w(0x44), w(0x45), w(0x46), w(0x47), \
+      w(0x48), w(0x49), w(0x4a), w(0x4b), w(0x4c), w(0x4d), w(0x4e), w(0x4f), \
+      w(0x50), w(0x51), w(0x52), w(0x53), w(0x54), w(0x55), w(0x56), w(0x57), \
+      w(0x58), w(0x59), w(0x5a), w(0x5b), w(0x5c), w(0x5d), w(0x5e), w(0x5f), \
+      w(0x60), w(0x61), w(0x62), w(0x63), w(0x64), w(0x65), w(0x66), w(0x67), \
+      w(0x68), w(0x69), w(0x6a), w(0x6b), w(0x6c), w(0x6d), w(0x6e), w(0x6f), \
+      w(0x70), w(0x71), w(0x72), w(0x73), w(0x74), w(0x75), w(0x76), w(0x77), \
+      w(0x78), w(0x79), w(0x7a), w(0x7b), w(0x7c), w(0x7d), w(0x7e), w(0x7f), \
+      w(0x80), w(0x81), w(0x82), w(0x83), w(0x84), w(0x85), w(0x86), w(0x87), \
+      w(0x88), w(0x89), w(0x8a), w(0x8b), w(0x8c), w(0x8d), w(0x8e), w(0x8f), \
+      w(0x90), w(0x91), w(0x92), w(0x93), w(0x94), w(0x95), w(0x96), w(0x97), \
+      w(0x98), w(0x99), w(0x9a), w(0x9b), w(0x9c), w(0x9d), w(0x9e), w(0x9f), \
+      w(0xa0), w(0xa1), w(0xa2), w(0xa3), w(0xa4), w(0xa5), w(0xa6), w(0xa7), \
+      w(0xa8), w(0xa9), w(0xaa), w(0xab), w(0xac), w(0xad), w(0xae), w(0xaf), \
+      w(0xb0), w(0xb1), w(0xb2), w(0xb3), w(0xb4), w(0xb5), w(0xb6), w(0xb7), \
+      w(0xb8), w(0xb9), w(0xba), w(0xbb), w(0xbc), w(0xbd), w(0xbe), w(0xbf), \
+      w(0xc0), w(0xc1), w(0xc2), w(0xc3), w(0xc4), w(0xc5), w(0xc6), w(0xc7), \
+      w(0xc8), w(0xc9), w(0xca), w(0xcb), w(0xcc), w(0xcd), w(0xce), w(0xcf), \
+      w(0xd0), w(0xd1), w(0xd2), w(0xd3), w(0xd4), w(0xd5), w(0xd6), w(0xd7), \
+      w(0xd8), w(0xd9), w(0xda), w(0xdb), w(0xdc), w(0xdd), w(0xde), w(0xdf), \
+      w(0xe0), w(0xe1), w(0xe2), w(0xe3), w(0xe4), w(0xe5), w(0xe6), w(0xe7), \
+      w(0xe8), w(0xe9), w(0xea), w(0xeb), w(0xec), w(0xed), w(0xee), w(0xef), \
+      w(0xf0), w(0xf1), w(0xf2), w(0xf3), w(0xf4), w(0xf5), w(0xf6), w(0xf7), \
+      w(0xf8), w(0xf9), w(0xfa), w(0xfb), w(0xfc), w(0xfd), w(0xfe), w(0xff)  \
+  }
+
+static const uint8_t sbox[256]      = sb_data(f1);
+static const uint8_t gfm2_sbox[256] = sb_data(f2);
+static const uint8_t gfm3_sbox[256] = sb_data(f3);
+
+#define s_box(x) sbox[(x)]
+#define gfm2_sb(x) gfm2_sbox[(x)]
+#define gfm3_sb(x) gfm3_sbox[(x)]
+
+static void copy_and_key(void* d, const void* s, const void* k) {
+  ((uint32_t*)d)[0] = ((uint32_t*)s)[0] ^ ((uint32_t*)k)[0];
+  ((uint32_t*)d)[1] = ((uint32_t*)s)[1] ^ ((uint32_t*)k)[1];
+  ((uint32_t*)d)[2] = ((uint32_t*)s)[2] ^ ((uint32_t*)k)[2];
+  ((uint32_t*)d)[3] = ((uint32_t*)s)[3] ^ ((uint32_t*)k)[3];
+}
+
+static void xor_block(void* d, const void* s) {
+  ((uint32_t*)d)[0] ^= ((uint32_t*)s)[0];
+  ((uint32_t*)d)[1] ^= ((uint32_t*)s)[1];
+  ((uint32_t*)d)[2] ^= ((uint32_t*)s)[2];
+  ((uint32_t*)d)[3] ^= ((uint32_t*)s)[3];
+}
+
+static void shift_sub_rows(uint8_t st[N_BLOCK]) {
+  uint8_t tt;
+
+  st[0]  = s_box(st[0]);
+  st[4]  = s_box(st[4]);
+  st[8]  = s_box(st[8]);
+  st[12] = s_box(st[12]);
+
+  tt     = st[1];
+  st[1]  = s_box(st[5]);
+  st[5]  = s_box(st[9]);
+  st[9]  = s_box(st[13]);
+  st[13] = s_box(tt);
+
+  tt     = st[2];
+  st[2]  = s_box(st[10]);
+  st[10] = s_box(tt);
+
+  tt     = st[6];
+  st[6]  = s_box(st[14]);
+  st[14] = s_box(tt);
+
+  tt     = st[15];
+  st[15] = s_box(st[11]);
+  st[11] = s_box(st[7]);
+  st[7]  = s_box(st[3]);
+  st[3]  = s_box(tt);
+}
+
+static void mix_sub_columns(uint8_t dt[N_BLOCK]) {
+  uint8_t st[N_BLOCK];
+  rt_memcpy(st, dt, N_BLOCK);
+
+  dt[0] = gfm2_sb(st[0]) ^ gfm3_sb(st[5]) ^ s_box(st[10]) ^ s_box(st[15]);
+  dt[1] = s_box(st[0]) ^ gfm2_sb(st[5]) ^ gfm3_sb(st[10]) ^ s_box(st[15]);
+  dt[2] = s_box(st[0]) ^ s_box(st[5]) ^ gfm2_sb(st[10]) ^ gfm3_sb(st[15]);
+  dt[3] = gfm3_sb(st[0]) ^ s_box(st[5]) ^ s_box(st[10]) ^ gfm2_sb(st[15]);
+
+  dt[4] = gfm2_sb(st[4]) ^ gfm3_sb(st[9]) ^ s_box(st[14]) ^ s_box(st[3]);
+  dt[5] = s_box(st[4]) ^ gfm2_sb(st[9]) ^ gfm3_sb(st[14]) ^ s_box(st[3]);
+  dt[6] = s_box(st[4]) ^ s_box(st[9]) ^ gfm2_sb(st[14]) ^ gfm3_sb(st[3]);
+  dt[7] = gfm3_sb(st[4]) ^ s_box(st[9]) ^ s_box(st[14]) ^ gfm2_sb(st[3]);
+
+  dt[8]  = gfm2_sb(st[8]) ^ gfm3_sb(st[13]) ^ s_box(st[2]) ^ s_box(st[7]);
+  dt[9]  = s_box(st[8]) ^ gfm2_sb(st[13]) ^ gfm3_sb(st[2]) ^ s_box(st[7]);
+  dt[10] = s_box(st[8]) ^ s_box(st[13]) ^ gfm2_sb(st[2]) ^ gfm3_sb(st[7]);
+  dt[11] = gfm3_sb(st[8]) ^ s_box(st[13]) ^ s_box(st[2]) ^ gfm2_sb(st[7]);
+
+  dt[12] = gfm2_sb(st[12]) ^ gfm3_sb(st[1]) ^ s_box(st[6]) ^ s_box(st[11]);
+  dt[13] = s_box(st[12]) ^ gfm2_sb(st[1]) ^ gfm3_sb(st[6]) ^ s_box(st[11]);
+  dt[14] = s_box(st[12]) ^ s_box(st[1]) ^ gfm2_sb(st[6]) ^ gfm3_sb(st[11]);
+  dt[15] = gfm3_sb(st[12]) ^ s_box(st[1]) ^ s_box(st[6]) ^ gfm2_sb(st[11]);
+}
+
+static void add_round_key(uint8_t d[N_BLOCK], const uint8_t k[N_BLOCK]) {
+  xor_block(d, k);
+}
+
+uint8_t lorawan_soft_se_aes_encrypt(const uint8_t in[N_BLOCK], uint8_t out[N_BLOCK], const lorawan_aes_context ctx[1]) {
+  if (ctx->rnd) {
+    uint8_t s1[N_BLOCK], r;
+    copy_and_key(s1, in, ctx->ksch);
+
+    for (r = 1; r < ctx->rnd; ++r) {
+      mix_sub_columns(s1);
+      add_round_key(s1, ctx->ksch + r * N_BLOCK);
+    }
+
+    shift_sub_rows(s1);
+    copy_and_key(out, s1, ctx->ksch + r * N_BLOCK);
+  } else
+    return (uint8_t)-1;
+  return 0;
+}
+
+uint8_t lorawan_soft_se_aes_set_key(lorawan_aes_context* ctx, const uint8_t key[], uint8_t keylen) {
+  uint8_t cc, rc, hi;
+
+  switch (keylen) {
+  case 16:
+  case 24:
+  case 32:
+    break;
+  default:
+    ctx->rnd = 0;
+    return (uint8_t)-1;
+  }
+
+  rt_memcpy(ctx->ksch, key, keylen);
+
+  hi       = (keylen + 28) << 2;
+  ctx->rnd = (hi >> 4) - 1;
+
+  for (cc = keylen, rc = 1; cc < hi; cc += 4) {
+    uint8_t tt, t0, t1, t2, t3;
+
+    t0 = ctx->ksch[cc - 4];
+    t1 = ctx->ksch[cc - 3];
+    t2 = ctx->ksch[cc - 2];
+    t3 = ctx->ksch[cc - 1];
+    if (cc % keylen == 0) {
+      tt = t0;
+      t0 = s_box(t1) ^ rc;
+      t1 = s_box(t2);
+      t2 = s_box(t3);
+      t3 = s_box(tt);
+      rc = f2(rc);
+    } else if (keylen > 24 && cc % keylen == 16) {
+      t0 = s_box(t0);
+      t1 = s_box(t1);
+      t2 = s_box(t2);
+      t3 = s_box(t3);
+    }
+    tt                = cc - keylen;
+    ctx->ksch[cc + 0] = ctx->ksch[tt + 0] ^ t0;
+    ctx->ksch[cc + 1] = ctx->ksch[tt + 1] ^ t1;
+    ctx->ksch[cc + 2] = ctx->ksch[tt + 2] ^ t2;
+    ctx->ksch[cc + 3] = ctx->ksch[tt + 3] ^ t3;
+  }
+  return 0;
+}
+
+void lorawan_cmac_setkey(lorawan_aes_cmac_ctx* ctx, uint8_t* key) {
+  lorawan_soft_se_aes_set_key(&ctx->rijndael, key, AES_CMAC_KEY_LENGTH);
+}
+
+void lorawan_cmac_update(lorawan_aes_cmac_ctx* ctx, const uint8_t* data, uint32_t len) {
+  uint32_t mlen;
+  uint8_t  in[16];
+
+  if (ctx->m_n > 0) {
+    mlen = MIN(16 - ctx->m_n, len);
+    rt_memcpy(ctx->m_last + ctx->m_n, data, mlen);
+    ctx->m_n += mlen;
+    if (ctx->m_n < 16 || len == mlen) {
+      return;
+    }
+
+    XOR(ctx->m_last, ctx->x);
+
+    rt_memcpy(in, &ctx->x[0], 16);  // Otherwise it does not look good
+    lorawan_soft_se_aes_encrypt(in, in, &ctx->rijndael);
+    rt_memcpy(&ctx->x[0], in, 16);
+
+    data += mlen;
+    len -= mlen;
+  }
+  while (len > 16) { /* not last block */
+
+    XOR(data, ctx->x);
+
+    rt_memcpy(in, &ctx->x[0], 16);  // Otherwise it does not look good
+    lorawan_soft_se_aes_encrypt(in, in, &ctx->rijndael);
+    rt_memcpy(&ctx->x[0], in, 16);
+
+    data += 16;
+    len -= 16;
+  }
+  /* potential last block, save it */
+  rt_memcpy(ctx->m_last, data, len);
+  ctx->m_n = len;
+}
+
+void lorawan_cmac_final(lorawan_aes_cmac_ctx* ctx, uint8_t digest[AES_CMAC_DIGEST_LENGTH]) {
+  uint8_t K[16] = { 0 };
+  uint8_t in[16];
+
+  lorawan_soft_se_aes_encrypt(K, K, &ctx->rijndael);
+
+  if (K[0] & 0x80) {
+    LSHIFT(K, K);
+    K[15] ^= 0x87;
+  } else
+    LSHIFT(K, K);
+
+  if (ctx->m_n == 16) {
+    /* last block was a complete block */
+    XOR(K, ctx->m_last);
+  } else {
+    /* generate subkey K2 */
+    if (K[0] & 0x80) {
+      LSHIFT(K, K);
+      K[15] ^= 0x87;
+    } else
+      LSHIFT(K, K);
+
+    /* padding(M_last) */
+    ctx->m_last[ctx->m_n] = 0x80;
+    while (++ctx->m_n < 16)
+      ctx->m_last[ctx->m_n] = 0;
+
+    XOR(K, ctx->m_last);
+  }
+  XOR(ctx->m_last, ctx->x);
+
+  rt_memcpy(in, &ctx->x[0], 16);  // Otherwise it does not look good
+  lorawan_soft_se_aes_encrypt(in, digest, &ctx->rijndael);
+  rt_memset(K, 0, sizeof K);
+}
+
+void lorawan_soft_se_derive(uint8_t* key, uint8_t* in, uint8_t* out) {
+  lorawan_aes_cmac_ctx aes_cmac_ctx = { 0 };
+  lorawan_soft_se_aes_set_key(&aes_cmac_ctx.rijndael, key, N_BLOCK);
+  lorawan_soft_se_aes_encrypt(in, out, &aes_cmac_ctx.rijndael);
+  return;
+}

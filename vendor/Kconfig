@@ -1,0 +1,21 @@
+source "$BSP_DIR/vendor/lorawan/Kconfig"
+source "$BSP_DIR/vendor/lora-radio/Kconfig"
+
+menu "BSP Components"
+
+choice BSP_COMPONENTS
+  prompt "BSP"
+  default SOC_SERIES_GD32E10X
+  config SOC_SERIES_GD32E10X
+    bool "gd32e10x"
+  config SOC_SERIES_GD32E20X
+    bool "gd32e20x"
+endchoice
+
+source "$BSP_DIR/vendor/gd32e10x-bsp/Kconfig"
+
+endmenu
+
+source "$BSP_DIR/vendor/sensor/bq24040/Kconfig"
+source "$BSP_DIR/vendor/sensor/ads1232/Kconfig"
+

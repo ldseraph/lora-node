@@ -1,0 +1,22 @@
+from building import *
+
+# get current directory
+cwd = GetCurrentDir()
+
+src = []
+CPPPATH = []
+CPPDEFINES = []
+
+if GetDepend('RT_USING_LORAWAN'):
+    src = Glob('./*.c')
+    src += Glob('./region/cn470/*.c')
+    CPPPATH += ['./']
+
+if GetDepend('RT_USING_LORAWAN_FREQUENCY_PLANS_CN470'):
+    src += Glob('./region/cn470/*.c')
+    CPPPATH += ['./region/cn470']
+
+
+group = DefineGroup('Lorawan', src, depend = CPPDEFINES, CPPPATH = CPPPATH)
+
+Return('group')

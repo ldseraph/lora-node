@@ -1,0 +1,20 @@
+from building import *
+
+# get current directory
+cwd = GetCurrentDir()
+
+src = []
+CPPPATH = []
+CPPDEFINES = []
+
+if GetDepend('RT_USING_LORA_RADIO'):
+    src = Glob('./*.c')
+    CPPPATH += ['./']
+
+if GetDepend('RT_USING_SX126X'):
+    src += Glob('./sx126x/*.c')
+    CPPPATH += ['./sx126x']
+
+group = DefineGroup('Lora_Radio', src, depend = CPPDEFINES, CPPPATH = CPPPATH)
+
+Return('group')

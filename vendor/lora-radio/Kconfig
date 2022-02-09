@@ -1,0 +1,14 @@
+config RT_USING_LORA_RADIO
+  bool
+  depends on RT_USING_LORAWAN
+  default y
+
+choice RT_USING_LORA_RADIO_DEVICE
+  prompt "Lora radio device"
+  depends on RT_USING_LORA_RADIO
+  default RT_USING_SX126X
+  config RT_USING_SX126X
+    bool "sx126x"
+endchoice
+
+source "$BSP_DIR/vendor/lora-radio/sx126x/Kconfig"

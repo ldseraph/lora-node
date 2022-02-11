@@ -1,21 +1,20 @@
 #include <board.h>
 #include <rtthread.h>
+#include <lorawan_app.h>
 #define DBG_SECTION_NAME "lorawan.app"
 #include <ulog.h>
-#ifdef RT_USING_LORAWAN
-#include <lorawan.h>
-#endif
 
 typedef rt_err_t (*app_init_func_t)(lorawan_t *);
 
-rt_err_t tension_app_init(lorawan_t *);
 
 app_init_func_t init_app_list[] = {
 #ifdef APP_COMPONENTS_TENSION
   tension_app_init,
-#else
-  RT_NULL,
 #endif
+#ifdef APP_COMPONENTS_TILT
+  tilt_app_init,
+#endif
+  RT_NULL
 };
 
 typedef struct {

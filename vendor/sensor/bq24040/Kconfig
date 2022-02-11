@@ -3,3 +3,20 @@ config RT_USING_BQ24040
   default n
   select RT_USING_ADC
   select RT_USING_PIN
+
+menu "BQ24040"
+depends on RT_USING_BQ24040
+
+config RT_USING_BQ24040_CHARGE
+  bool "enable charge"
+  default n
+
+config RT_USING_BQ24040_CHARGE_CHG
+  depends on RT_USING_BQ24040_CHARGE
+  string "gpio chg"
+
+config RT_USING_BQ24040_CHARGE_PG
+  depends on RT_USING_BQ24040_CHARGE
+  string "gpio pg"
+
+endmenu

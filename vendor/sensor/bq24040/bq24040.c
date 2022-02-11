@@ -2,6 +2,7 @@
 #define DBG_SECTION_NAME "bq24040"
 #include <ulog.h>
 
+#ifdef RT_USING_BQ24040_CHARGE
 rt_bool_t sensor_bq24040_charge_ok(rt_device_t dev) {
   sensor_bq24040_t *sensor_bq24040 = (sensor_bq24040_t *)dev;
   return rt_pin_read(sensor_bq24040->gpio_pg);
@@ -11,6 +12,7 @@ rt_bool_t sensor_bq24040_is_charging(rt_device_t dev) {
   sensor_bq24040_t *sensor_bq24040 = (sensor_bq24040_t *)dev;
   return !rt_pin_read(sensor_bq24040->gpio_chg);
 }
+#endif
 
 static rt_err_t sensor_bq24040_init(rt_device_t dev) {
   rt_err_t          err            = RT_EOK;
@@ -25,9 +27,11 @@ static rt_err_t sensor_bq24040_init(rt_device_t dev) {
   for (uint32_t i = 0; i < 3; i++) {
     rt_adc_read(sensor_bq24040->adc_dev, sensor_bq24040->device->channel);
   }
-
+  
+#ifdef RT_USING_BQ24040_CHARGE
   rt_pin_mode(sensor_bq24040->gpio_chg, GPIO_MODE_IN_FLOATING);
   rt_pin_mode(sensor_bq24040->gpio_pg, GPIO_MODE_IN_FLOATING);
+#endif
 
   return err;
 }
@@ -85,9 +89,10 @@ static rt_err_t sensor_bq24040_probe(devices_t *devices) {
     }
     sensor_bq24040->device   = sensor_bq24040_device;
     sensor_bq24040->adc_dev  = adc_dev;
+#ifdef RT_USING_BQ24040_CHARGE
     sensor_bq24040->gpio_chg = rt_pin_get(sensor_bq24040_device->chg);
     sensor_bq24040->gpio_pg  = rt_pin_get(sensor_bq24040_device->pg);
-
+#endif
     struct rt_device *parent = &(sensor_bq24040->parent);
 
     parent->type        = RT_Device_Class_Sensor;
@@ -122,8 +127,10 @@ static device_t init_devices[] = {
     .device = &(sensor_bq24040_device_t){
       .adc     = "adc0",
       .channel = 8,
-      .chg     = "PA.11",
-      .pg      = "PA.12",
+#ifdef RT_USING_BQ24040_CHARGE
+      .chg     = RT_USING_BQ24040_CHARGE_CHG,
+      .pg      = RT_USING_BQ24040_CHARGE_PG,
+#endif
     },
   }
 };

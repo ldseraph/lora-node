@@ -16,6 +16,7 @@ source "$BSP_DIR/vendor/gd32e10x-bsp/Kconfig"
 
 endmenu
 
-source "$BSP_DIR/vendor/sensor/bq24040/Kconfig"
-source "$BSP_DIR/vendor/sensor/ads1232/Kconfig"
-
+menu "Sensor Components"
+  source "$BSP_DIR/vendor/sensor/bq24040/Kconfig"
+  source "$BSP_DIR/vendor/sensor/ads1232/Kconfig"
+endmenu

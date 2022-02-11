@@ -2,20 +2,12 @@ config RT_USING_USER_MAIN
   bool
   default y
 
-choice APP_COMPONENTS
-  prompt "APP Components"
-  default APP_COMPONENTS_TENSION
-
-  config APP_COMPONENTS_TENSION
-    bool "tension app"
-  config APP_COMPONENTS_TILT
-    bool "tilt app"
-
-endchoice
+menu "App components"
+  source "$BSP_DIR/app/tension/Kconfig"
+  source "$BSP_DIR/app/tilt/Kconfig"
+endmenu
 
 config RT_USING_LORAWAN
-  depends on APP_COMPONENTS_TENSION
+  depends on APP_COMPONENTS_TENSION || APP_COMPONENTS_TILT
   bool
   default y
-
-source "$BSP_DIR/app/tension/Kconfig"

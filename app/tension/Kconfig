@@ -1,18 +1,29 @@
-config APP_COMPONENTS_TENSION
-  bool
+menuconfig APP_COMPONENTS_TENSION
+  bool "Tension app"
   default n
   select RT_USING_BQ24040
+  select RT_USING_BQ24040_CHARGE
   select RT_USING_ADS1232
   select RT_USING_PIN
 
-menu "Tension APP"
-  depends on APP_COMPONENTS_TENSION
+if APP_COMPONENTS_TENSION
 # TODO dts
-  choice APP_COMPONENTS_TENSION_ADC
-    prompt "tension using adc"
-    default BSP_USING_ADC0
-    config BSP_USING_ADC0
-      bool "adc0"
-  endchoice
+choice APP_TENSION_ADC
+  prompt "bq24040 using adc"
+  default APP_TENSION_ADC0
+  config APP_TENSION_ADC0
+    bool "adc0"
+    select BSP_USING_ADC0
+endchoice
 
-endmenu
+config RT_USING_BQ24040_CHARGE_CHG
+  string
+  default "PA.11"
+
+config RT_USING_BQ24040_CHARGE_PG
+  string
+  default "PA.12"
+
+endif
+
+

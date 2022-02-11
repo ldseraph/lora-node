@@ -7,3 +7,6 @@ rtconfig.h
 *.objdump
 __pycache__/
 build/
+/.config
+/.config.old
+.vscode

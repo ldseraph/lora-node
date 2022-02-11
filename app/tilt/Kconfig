@@ -1,0 +1,18 @@
+menuconfig APP_COMPONENTS_TILT
+  bool "Tilt app"
+  default n
+  select RT_USING_BQ24040
+  select RT_USING_ADXL355
+  select RT_USING_PIN
+
+if APP_COMPONENTS_TILT
+# TODO dts
+choice APP_TILT_ADC
+  prompt "bq24040 using adc"
+  default APP_TILT_ADC0
+  config APP_TILT_ADC0
+    bool "adc0"
+    select BSP_USING_ADC0
+endchoice
+
+endif

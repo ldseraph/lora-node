@@ -11,8 +11,6 @@ except:
     print(RTT_ROOT)
     exit(-1)
 
-TARGET = 'rtthread-gd32e1xx.' + rtconfig.TARGET_EXT
-
 DefaultEnvironment(tools = [])
 env = Environment(tools = ['mingw'],
     AS = rtconfig.AS,     ASFLAGS = rtconfig.AFLAGS,
@@ -48,4 +46,4 @@ if GetOption('showgroup'):
     exit(0)
     
 # make a building
-DoBuilding(TARGET, objs)
+DoBuilding(rtconfig.TARGET, objs)

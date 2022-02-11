@@ -8,6 +8,10 @@ src = ['./main.c']
 CPPPATH = ['./']
 CPPDEFINES = []
 
+if GetDepend('APP_COMPONENTS_TILT'):
+    src += Glob('./tilt/tilt_app.c')
+    CPPPATH += ['./tilt']
+
 if GetDepend('APP_COMPONENTS_TENSION'):
     src += Glob('./tension/tension_app.c')
     CPPPATH += ['./tension']

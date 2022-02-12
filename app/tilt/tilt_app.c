@@ -57,7 +57,7 @@ static void tilt_app_thread_handle(void* param) {
   err = tilt_app_power_down_init();
   if (err != RT_EOK) {
     LOG_E("%s: power down init err.", TILT_APP_SENSOR_BQ24040_NAME);
-    return err;
+    return;
   }
 
   // rt_base_t gpio_red = rt_pin_get(TILT_APP_GPIO_RED);

@@ -42,8 +42,8 @@ static rt_err_t tilt_app_power_down_init() {
   if (err != RT_EOK) {
     return err;
   }
-  err = rt_pin_irq_enable(gpio_down,PIN_IRQ_ENABLE);
-  if (err != RT_EOK){
+  err = rt_pin_irq_enable(gpio_down, PIN_IRQ_ENABLE);
+  if (err != RT_EOK) {
     return err;
   }
   return err;
@@ -112,12 +112,13 @@ rt_err_t tilt_app_init(lorawan_t* lorawan) {
     return -RT_ERROR;
   }
 
-  tilt_app_thread = rt_thread_create("app:tilt",
-                                     tilt_app_thread_handle,
-                                     lorawan,
-                                     TILT_APP_THREAD_STACK_SIZE,
-                                     15,
-                                     20);
+  tilt_app_thread = rt_thread_create(
+    "app:tilt",
+    tilt_app_thread_handle,
+    lorawan,
+    TILT_APP_THREAD_STACK_SIZE,
+    15,
+    20);
   if (tilt_app_thread == RT_NULL) {
     LOG_E("rt_thread_create err");
     return -RT_ERROR;
@@ -129,11 +130,12 @@ rt_err_t tilt_app_init(lorawan_t* lorawan) {
     return err;
   }
 
-  tilt_app_timer = rt_timer_create("app:tilt",
-                                   tilt_app_timer_handle,
-                                   RT_NULL,
-                                   rt_tick_from_millisecond(TILT_APP_THREAD_DELAY_MS),
-                                   RT_TIMER_FLAG_PERIODIC);
+  tilt_app_timer = rt_timer_create(
+    "app:tilt",
+    tilt_app_timer_handle,
+    RT_NULL,
+    rt_tick_from_millisecond(TILT_APP_THREAD_DELAY_MS),
+    RT_TIMER_FLAG_PERIODIC);
   if (tilt_app_timer == RT_NULL) {
     LOG_E("tilt_app_timer err: %d", err);
     return RT_ERROR;

@@ -17,8 +17,16 @@ typedef struct {
 } sensor_ads1232_device_t;
 
 typedef struct {
+} sensor_adxl355_device_t;
+
+typedef struct {
   uint32_t spi_base;
 } spi_bus_device_t;
+
+typedef struct {
+  uint32_t i2c_base;
+  uint32_t clkspeed;
+} i2c_bus_device_t;
 
 typedef struct {
   const char* spi_bus;

@@ -33,6 +33,10 @@ if GetDepend('RT_USING_SPI') :
     if GetDepend('RT_USING_PIN'):
         src += ['drv_spi.c']
 
+if GetDepend('RT_USING_I2C') :
+    if GetDepend('RT_USING_PIN'):
+        src += ['drv_i2c.c']
+
 group = DefineGroup('Drivers', src, depend = [''], CPPPATH = CPPPATH)
 
 Return('group')

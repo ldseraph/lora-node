@@ -60,9 +60,9 @@ static void tilt_app_thread_handle(void* param) {
     return;
   }
 
-  // rt_base_t gpio_red = rt_pin_get(TILT_APP_GPIO_RED);
-  // rt_pin_mode(gpio_red, GPIO_MODE_OUT_PP);
-  // rt_pin_write(gpio_red, PIN_LOW);
+  rt_base_t gpio_red = rt_pin_get(TILT_APP_GPIO_RED);
+  rt_pin_mode(gpio_red, GPIO_MODE_OUT_PP);
+  rt_pin_write(gpio_red, PIN_LOW);
 
   rt_device_t sensor_bq24040 = rt_device_find(TILT_APP_SENSOR_BQ24040_NAME);
   if (sensor_bq24040 == RT_NULL) {
@@ -78,7 +78,7 @@ static void tilt_app_thread_handle(void* param) {
 
   for (;;) {
     rt_sem_take(tilt_app_sem, RT_WAITING_FOREVER);
-    // rt_pin_write(gpio_red, PIN_LOW);
+    rt_pin_write(gpio_red, PIN_LOW);
 
     uint32_t battery_value;
     rt_device_read(sensor_bq24040, 0, &battery_value, sizeof(battery_value));
@@ -99,7 +99,7 @@ static void tilt_app_thread_handle(void* param) {
 
     rt_thread_mdelay(TILT_APP_LED_DELAY_MS);
 
-    // rt_pin_write(gpio_red, PIN_HIGH);
+    rt_pin_write(gpio_red, PIN_HIGH);
   }
 
   return;

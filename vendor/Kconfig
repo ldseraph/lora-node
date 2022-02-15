@@ -19,4 +19,5 @@ endmenu
 menu "Sensor Components"
   source "$BSP_DIR/vendor/sensor/bq24040/Kconfig"
   source "$BSP_DIR/vendor/sensor/ads1232/Kconfig"
+  source "$BSP_DIR/vendor/sensor/adxl355/Kconfig"
 endmenu

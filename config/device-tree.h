@@ -17,6 +17,9 @@ typedef struct {
 } sensor_ads1232_device_t;
 
 typedef struct {
+  const char* i2c_bus;
+  uint16_t    device_addr;
+  uint16_t    range;
 } sensor_adxl355_device_t;
 
 typedef struct {

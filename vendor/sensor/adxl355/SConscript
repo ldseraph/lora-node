@@ -1,0 +1,15 @@
+from building import *
+
+# get current directory
+cwd = GetCurrentDir()
+
+src = []
+CPPPATH = []
+
+if GetDepend('RT_USING_ADXL355'):
+    src += ['adxl355.c']
+    CPPPATH += ['./']
+
+group = DefineGroup('adxl355', src, depend = [''], CPPPATH = CPPPATH)
+
+Return('group')

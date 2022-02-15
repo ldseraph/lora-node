@@ -1,0 +1,4 @@
+config RT_USING_ADXL355
+  bool
+  default n
+  select RT_USING_I2C

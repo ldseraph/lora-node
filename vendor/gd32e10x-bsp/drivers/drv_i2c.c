@@ -146,7 +146,6 @@ static rt_size_t i2c_xfer(struct rt_i2c_bus_device *bus, struct rt_i2c_msg msgs[
   ret = i;
 
 out:
-  LOG_D("send stop condition");
 
   return ret;
 }

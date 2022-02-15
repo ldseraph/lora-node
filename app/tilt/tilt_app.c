@@ -1,3 +1,4 @@
+#include <adxl355.h>
 #include <bq24040.h>
 #include <lorawan.h>
 #define DBG_SECTION_NAME "tilt"
@@ -7,9 +8,15 @@
 #define TILT_APP_LED_DELAY_MS 500
 #define TILT_APP_THREAD_STACK_SIZE 2048
 #define TILT_APP_SENSOR_BQ24040_NAME "bq24040:0"
+#define TILT_APP_SENSOR_ADXL355_NAME "adxl355:0"
 #define TILT_APP_GPIO_POWER_UP "PB.1"
 #define TILT_APP_GPIO_POWER_DOWN "PB.2"
 #define TILT_APP_GPIO_RED "PA.11"
+
+typedef struct {
+  uint32_t              battery;
+  sensor_adxl355_data_t adxl355_data;
+} __attribute__((packed)) tilt_app_data_packet_t;
 
 static rt_thread_t tilt_app_thread;
 static rt_timer_t  tilt_app_timer;
@@ -76,6 +83,18 @@ static void tilt_app_thread_handle(void* param) {
     return;
   }
 
+  rt_device_t sensor_adxl355 = rt_device_find(TILT_APP_SENSOR_ADXL355_NAME);
+  if (sensor_adxl355 == RT_NULL) {
+    LOG_E("%s: find err.", TILT_APP_SENSOR_ADXL355_NAME);
+    return;
+  }
+
+  err = rt_device_open(sensor_adxl355, RT_DEVICE_OFLAG_RDWR);
+  if (err != RT_EOK) {
+    LOG_E("%s: open err: %d.", RT_DEVICE_OFLAG_RDWR, err);
+    return;
+  }
+
   for (;;) {
     rt_sem_take(tilt_app_sem, RT_WAITING_FOREVER);
     rt_pin_write(gpio_red, PIN_LOW);
@@ -83,13 +102,16 @@ static void tilt_app_thread_handle(void* param) {
     uint32_t battery_value;
     rt_device_read(sensor_bq24040, 0, &battery_value, sizeof(battery_value));
 
-    lorawan_mb_msg_t* msg = lorawan_malloc_mb_msg(sizeof(battery_value));
+    sensor_adxl355_data_t sensor_adxl355_data;
 
-    uint32_t* battery = (uint32_t*)msg->buffer;
+    rt_device_read(sensor_adxl355, 0, &sensor_adxl355_data, sizeof(sensor_adxl355_data));
 
-    *battery = battery_value;
+    lorawan_mb_msg_t* msg = lorawan_malloc_mb_msg(sizeof(tilt_app_data_packet_t));
 
-    // LOG_I("battery_value %d", battery_value);
+    tilt_app_data_packet_t* packet = (tilt_app_data_packet_t*)msg->buffer;
+
+    packet->battery      = battery_value;
+    packet->adxl355_data = sensor_adxl355_data;
 
     err = lorawan_send_confirmed(lorawan, 1, msg);
     if (err != RT_EOK) {

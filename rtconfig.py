@@ -9,7 +9,6 @@ if os.path.exists(rtconfig_file):
     f = open(rtconfig_file)
     rtconfig = f.read()
     APPS = re.findall(r"(?<=APP_COMPONENTS_)\S+",rtconfig)
-    print(APPS)
     for app in APPS:
         APP_NAME = APP_NAME + app.lower() + '_'
 else:

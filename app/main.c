@@ -15,7 +15,7 @@ int main() {
 
   return RT_EOK;
 }
-
+//test
 static void show_id() {
   uint8_t devid[8];
   board_get_unique_ID(devid);

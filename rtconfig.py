@@ -20,11 +20,14 @@ else:
 
 APP_NAME = APP_NAME + 'app_' + VERSION
 
+EXEC_PATH  = './'
+if os.path.exists('../gcc'):
+    EXEC_PATH  = '../gcc/bin'
+
 ARCH       = 'arm'
 CPU        = 'cortex-m4'
 CROSS_TOOL = 'gcc'
 PLATFORM   = 'gcc'
-EXEC_PATH  = './'
 BUILD      = 'release'
 
 PREFIX = 'arm-none-eabi-'

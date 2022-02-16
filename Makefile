@@ -8,6 +8,7 @@ VERSION ?= $(shell git describe --tags --dirty --match=v* 2> /dev/null || echo v
 all: build
 
 %_app:
+	$Q touch rtconfig.h
 	$Q scons --useconfig=./app/$*/.config
 
 .PHONY: menuconfig

@@ -2,7 +2,7 @@ CPU_N ?= $(shell nproc --all)
 V = 0
 Q = $(if $(filter 1,$V),,@)
 APPS_NAME := $(addsuffix _app,$(filter-out app,$(notdir $(shell find ./app -maxdepth 1 -type d)))) 
-VERSION ?= $(shell git describe --tags --dirty --match=v* 2> /dev/null || echo v0)
+VERSION ?= $(shell git describe --tags --dirty --match=v* --always 2> /dev/null || echo v0)
 
 .PHONY: all
 all: build

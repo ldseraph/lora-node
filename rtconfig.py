@@ -3,6 +3,10 @@ import re
 
 APP_NAME = ''
 
+stream = os.popen('git describe --tags --dirty --match=v* 2> /dev/null || echo v0')
+VERSION = stream.read().rstrip("\n")
+stream.close()
+
 rtconfig_file = './rtconfig.h'
 
 if os.path.exists(rtconfig_file):
@@ -14,7 +18,7 @@ if os.path.exists(rtconfig_file):
 else:
     APP_NAME = 'unknown_'
 
-APP_NAME = APP_NAME + 'app'
+APP_NAME = APP_NAME + 'app_' + VERSION
 
 ARCH       = 'arm'
 CPU        = 'cortex-m4'

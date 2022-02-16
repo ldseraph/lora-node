@@ -115,13 +115,14 @@ static rt_err_t sensor_adxl355_power_down(sensor_adxl355_t *sensor_adxl355) {
   return RT_EOK;
 }
 
-static int32_t sensor_adxl355_data_conversion(uint8_t *raw) {
+static float sensor_adxl355_data_conversion(uint8_t *raw, float scale) {
   int32_t sensor_data = raw[0] << 12 | raw[1] << 4 | (raw[2] >> 4);
 
   if (sensor_data & 0x00080000) {
     sensor_data |= 0xFFF00000;
   }
-  return sensor_data;
+  
+  return (float)(sensor_data / scale);
 }
 
 static rt_size_t sensor_adxl355_read(
@@ -144,7 +145,6 @@ static rt_size_t sensor_adxl355_read(
   }
 
   while ((sensorX[0] == 0) && (sensorX[1] == 0) && (sensorX[2] == 0)) {
-  // for (uint32_t i = 0; i < 10; i++) {
     rt_thread_mdelay(50);
     err = sensor_adxl355_read_byte(sensor_adxl355, XDATA3, sensorX, ADXl355_READ_THREE_REG);
     if (err != RT_EOK) {
@@ -163,7 +163,6 @@ static rt_size_t sensor_adxl355_read(
       LOG_E("start read ZDATA3 err(%d)", err);
       return err;
     }
-    
   }
 
   err = sensor_adxl355_power_down(sensor_adxl355);
@@ -172,13 +171,9 @@ static rt_size_t sensor_adxl355_read(
     return err;
   }
 
-  int32_t sensorX_data = sensor_adxl355_data_conversion(sensorX);
-  int32_t sensorY_data = sensor_adxl355_data_conversion(sensorY);
-  int32_t sensorZ_data = sensor_adxl355_data_conversion(sensorZ);
-
-  float fSensorX = (float)(sensorX_data / sensor_adxl355->scale);
-  float fSensorY = (float)(sensorY_data / sensor_adxl355->scale);
-  float fSensorZ = (float)(sensorZ_data / sensor_adxl355->scale);
+  float fSensorX = sensor_adxl355_data_conversion(sensorX,sensor_adxl355->scale);
+  float fSensorY = sensor_adxl355_data_conversion(sensorY,sensor_adxl355->scale);
+  float fSensorZ = sensor_adxl355_data_conversion(sensorZ,sensor_adxl355->scale);
 
   data->xangle = atan2(fSensorX, sqrt(fSensorY * fSensorY + fSensorZ * fSensorZ)) * (180 / 3.1415926);
   data->yangle = atan2(fSensorY, sqrt(fSensorX * fSensorX + fSensorZ * fSensorZ)) * (180 / 3.1415926);

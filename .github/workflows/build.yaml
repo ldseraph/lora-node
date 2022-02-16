@@ -36,7 +36,6 @@ jobs:
     - name: Build all
       working-directory: ./lora-node
       run: |
-        git fetch --depth=1 origin +refs/tags/*:refs/tags/*
         make build_all
     - name: Upload artifact
       uses: actions/upload-artifact@v2

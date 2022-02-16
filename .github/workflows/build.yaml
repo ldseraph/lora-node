@@ -1,4 +1,4 @@
-name: build
+name: build all
 on:
   push:
     tags:
@@ -32,7 +32,7 @@ jobs:
       run: |
         git clone --depth 1 $GCC_REPO_URL -b $GCC_REPO_BRANCH gcc
         echo $(pwd)/gcc/bin >> $GITHUB_PATH
-    - name: Build
+    - name: Build all
       working-directory: ./lora-node
       run: |
         git fetch --depth=1 origin +refs/tags/*:refs/tags/*

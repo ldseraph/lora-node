@@ -3,9 +3,11 @@ import re
 
 APP_NAME = ''
 
-stream = os.popen('git describe --tags --dirty --match=v* 2> /dev/null || echo v0')
+stream = os.popen('git describe --tags --dirty --match=v* 2> /dev/null')
 VERSION = stream.read().rstrip("\n")
 stream.close()
+
+print(VERSION)
 
 rtconfig_file = './rtconfig.h'
 

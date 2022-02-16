@@ -27,7 +27,7 @@ build:
 
 .PHONY: build_all
 build_all:
-	for app in $(APPS_NAME) ; do \
+	$Q for app in $(APPS_NAME) ; do \
 		make $$app;\
 		make build;\
 	done
@@ -35,6 +35,10 @@ build_all:
 .PHONY: clean
 clean:
 	$Q scons --clean
+	$Q rm *.bin 2> /dev/null || true
+	$Q rm *.elf 2> /dev/null || true
+	$Q rm *.map 2> /dev/null || true
+	$Q rm *.objdump 2> /dev/null || true
 
 .PHONY: version
 version:

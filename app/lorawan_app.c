@@ -61,15 +61,15 @@ rt_err_t lorawan_app(){
   uint8_t app_key[] = { 0x2B, 0x7E, 0x15, 0x16, 0x28, 0xAE, 0xD2, 0xA6, 0xAB, 0xF7, 0x15, 0x88, 0x09, 0xCF, 0x4F, 0x3C };
   rt_memcpy(lorawan->secure_element.app_key, app_key, sizeof(app_key));
 
-  uint8_t join_eui[8];
-  board_get_unique_ID(join_eui);
-
-  rt_memcpy(lorawan->secure_element.join_eui, join_eui, sizeof(join_eui));
-
   uint8_t dev_eui[8];
-  lorawan_serializer_compute_hash(RT_NULL, join_eui, sizeof(join_eui), lorawan->secure_element.app_key, dev_eui);
+  board_get_unique_ID(dev_eui);
 
   rt_memcpy(lorawan->secure_element.dev_eui, dev_eui, sizeof(dev_eui));
+
+  uint8_t join_eui[8];
+  lorawan_serializer_compute_hash(RT_NULL, dev_eui, sizeof(dev_eui), lorawan->secure_element.app_key, join_eui);
+
+  rt_memcpy(lorawan->secure_element.join_eui, join_eui, sizeof(join_eui));
 
   // channelsmask init
   uint16_t channels_mask[lorawan->region->channels_mask_nb];

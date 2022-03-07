@@ -1,5 +1,5 @@
-#include <lorawan.h>
 #include <bq24040.h>
+#include <lorawan.h>
 #define DBG_SECTION_NAME "tension"
 #include <ulog.h>
 
@@ -61,6 +61,15 @@ static void tension_app_thread_handle(void* param) {
     uint32_t battery_value;
     rt_device_read(sensor_bq24040, 0, &battery_value, sizeof(battery_value));
 
+    // LOG_I("%s: battery value: %d", TENSION_APP_SENSOR_BQ24040_NAME, battery_value);
+    battery_value = (battery_value - 150) / 3;
+
+    rt_bool_t charge_ok   = sensor_bq24040_charge_ok(sensor_bq24040);
+
+    if (battery_value > 10 || charge_ok) {
+      battery_value = 10;
+    }
+
     int32_t tension_value;
     rt_device_read(sensor_ads1232, 0, &tension_value, sizeof(tension_value));
 
@@ -79,10 +88,9 @@ static void tension_app_thread_handle(void* param) {
 
     // LOG_I("battery_value %d", battery_value);
     rt_bool_t is_charging = sensor_bq24040_is_charging(sensor_bq24040);
-    rt_bool_t charge_ok   = sensor_bq24040_charge_ok(sensor_bq24040);
 
     uint32_t gpio_high;
-    if (battery_value < 160 || (is_charging && !charge_ok)) {
+    if (battery_value < 4 || (is_charging && !charge_ok)) {
       rt_pin_write(gpio_red, PIN_HIGH);
       rt_pin_write(gpio_green, PIN_LOW);
       gpio_high = gpio_red;

@@ -102,6 +102,13 @@ static void tilt_app_thread_handle(void* param) {
     uint32_t battery_value;
     rt_device_read(sensor_bq24040, 0, &battery_value, sizeof(battery_value));
 
+    // LOG_I("%s: battery value: %d", TILT_APP_SENSOR_BQ24040_NAME, battery_value);
+    battery_value = (battery_value - 150) / 3;
+
+    if (battery_value > 10) {
+      battery_value = 10;
+    }
+
     sensor_adxl355_data_t sensor_adxl355_data;
 
     rt_device_read(sensor_adxl355, 0, &sensor_adxl355_data, sizeof(sensor_adxl355_data));

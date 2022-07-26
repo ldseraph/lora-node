@@ -109,6 +109,7 @@ static rt_uint32_t xfer(struct rt_spi_device *device, struct rt_spi_message *mes
 
   if (message->cs_take) {
     rt_pin_write(gd32_cs_pin, PIN_LOW);
+    rt_thread_mdelay(1);
   }
 
   if (config->data_width <= 8) {

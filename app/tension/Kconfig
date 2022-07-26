@@ -2,7 +2,7 @@ menuconfig APP_COMPONENTS_TENSION
   bool "Tension app"
   default n
   select RT_USING_BQ24040
-  select RT_USING_BQ24040_CHARGE
+  # select RT_USING_BQ24040_CHARGE
   select RT_USING_ADS1232
   select RT_USING_PIN
 

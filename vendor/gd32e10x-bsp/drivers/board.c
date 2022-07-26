@@ -14,6 +14,8 @@
 #include <rthw.h>
 #include <rtthread.h>
 #include <stdint.h>
+#define DBG_SECTION_NAME "board"
+#include <ulog.h>
 
 /*
  * System Clock Configuration
@@ -60,6 +62,24 @@ void rt_hw_board_init() {
 #ifdef RT_USING_CONSOLE
   rt_console_set_device(RT_CONSOLE_DEVICE_NAME);
 #endif
+
+  fwdgt_write_enable();
+  fwdgt_config(0xFFFF, FWDGT_PSC_DIV256);
+  fwdgt_write_disable();
+  fwdgt_counter_reload();
+  fwdgt_enable();
+}
+
+static rt_bool_t panic = RT_FALSE;
+
+void board_fwd_reload() {
+  if (!panic) {
+    fwdgt_counter_reload();
+  }
+}
+
+void board_panic() {
+  panic = RT_TRUE;
 }
 
 #define ID1 (0x1FFFF7E8)

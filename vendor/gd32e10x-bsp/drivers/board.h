@@ -26,5 +26,7 @@ extern int __bss_end__;
 void board_write_unique_ID(uint8_t*);
 void board_get_unique_ID(uint8_t*);
 void board_delay_us(uint32_t);
+void board_panic();
+void board_fwd_reload();
 
 #endif

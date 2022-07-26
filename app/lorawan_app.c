@@ -138,6 +138,8 @@ rt_err_t lorawan_app(){
   if (err != RT_EOK) {
     LOG_E("lorawan run err: %d", err);
   }
+  
+  board_panic();
 
   return RT_EOK;
 }

@@ -168,12 +168,20 @@ static int rt_hw_adc_init(void) {
 
 #ifdef BSP_USING_ADC0
   rcu_periph_clock_enable(RCU_ADC0);
-  rcu_adc_clock_config(RCU_CKADC_CKAPB2_DIV4);
+  if (SystemCoreClock == 120000000){
+    rcu_adc_clock_config(RCU_CKADC_CKAPB2_DIV16);
+  }else{
+    rcu_adc_clock_config(RCU_CKADC_CKAPB2_DIV2);
+  }
 #endif
 
 #ifdef BSP_USING_ADC1
   rcu_periph_clock_enable(RCU_ADC1);
-  rcu_adc_clock_config(RCU_CKADC_CKAPB2_DIV4);
+  if (SystemCoreClock == 120000000){
+    rcu_adc_clock_config(RCU_CKADC_CKAPB2_DIV16);
+  }else{
+    rcu_adc_clock_config(RCU_CKADC_CKAPB2_DIV2);
+  }
 #endif
 
   for (; i < ARRAY_SIZE(g_gd32_devs); i++) {

@@ -17,6 +17,7 @@ static inline rt_err_t sx126x_wait_on_busy(lora_radio_t *lora_radio) {
     timeout--;
     rt_thread_delay(1);
     if (!timeout) {
+      LOG_E("sx126x_wait_on_busy timeout");
       return -RT_ETIMEOUT;
     }
   };
@@ -45,16 +46,22 @@ static rt_err_t sx126x_lora_radio_write_command(
 
   rt_err_t err = sx126x_check_device_ready(lora_radio);
   if (err != RT_EOK) {
+    LOG_E("%s sx126x_check_device_ready:%d err:%d",__FUNCTION__,command,err);
     return err;
   }
 
   err = rt_spi_send_then_send(lora_radio->spi_device, &command, 1, buffer, size);
   if (err != RT_EOK) {
+    LOG_E("%s rt_spi_send_then_send:%d err:%d",__FUNCTION__,command,err);
     return err;
   }
 
   if (command != RADIO_SET_SLEEP) {
     err = sx126x_wait_on_busy(lora_radio);
+    if (err != RT_EOK) {
+      LOG_E("%s sx126x_wait_on_busy:%d err:%d",__FUNCTION__,command,err);
+      return err;
+    }
   }
 
   return err;
@@ -67,6 +74,7 @@ static rt_err_t sx126x_lora_radio_read_command(
   uint16_t                size) {
   rt_err_t err = sx126x_check_device_ready(lora_radio);
   if (err != RT_EOK) {
+    LOG_E("%s sx126x_check_device_ready:%d err:%d",__FUNCTION__,command,err);
     return err;
   }
 
@@ -77,11 +85,16 @@ static rt_err_t sx126x_lora_radio_read_command(
 
   err = rt_spi_send_then_recv(lora_radio->spi_device, tmp, sizeof(tmp), buffer, size);
   if (err != RT_EOK) {
+    LOG_E("%s rt_spi_send_then_recv:%d err:%d",__FUNCTION__,command,err);
     return err;
   }
 
   if (command != RADIO_SET_SLEEP) {
     err = sx126x_wait_on_busy(lora_radio);
+      if (err != RT_EOK) {
+        LOG_E("%s sx126x_wait_on_busy:%d err:%d",__FUNCTION__,command,err);
+        return err;
+      }
   }
 
   return err;
@@ -94,6 +107,7 @@ static rt_err_t sx126x_write_buffer(
   rt_size_t      size) {
   rt_err_t err = sx126x_check_device_ready(lora_radio);
   if (err != RT_EOK) {
+    LOG_E("%s sx126x_check_device_ready err:%d",__FUNCTION__,err);
     return err;
   }
 
@@ -101,6 +115,7 @@ static rt_err_t sx126x_write_buffer(
 
   err = rt_spi_send_then_send(lora_radio->spi_device, msg, sizeof(msg), buffer, size);
   if (err != RT_EOK) {
+    LOG_E("%s rt_spi_send_then_send err:%d",__FUNCTION__,err);
     return err;
   }
 
@@ -114,6 +129,7 @@ static rt_err_t sx126x_read_buffer(
   rt_size_t     size) {
   rt_err_t err = sx126x_check_device_ready(lora_radio);
   if (err != RT_EOK) {
+    LOG_E("%s sx126x_check_device_ready err:%d",__FUNCTION__,err);
     return err;
   }
 
@@ -121,6 +137,7 @@ static rt_err_t sx126x_read_buffer(
 
   err = rt_spi_send_then_recv(lora_radio->spi_device, msg, sizeof(msg), buffer, size);
   if (err != RT_EOK) {
+    LOG_E("%s rt_spi_send_then_recv err:%d",__FUNCTION__,err);
     return err;
   }
 
@@ -134,6 +151,7 @@ static rt_err_t sx126x_read_registers(
   uint16_t      size) {
   rt_err_t err = sx126x_check_device_ready(lora_radio);
   if (err != RT_EOK) {
+    LOG_E("%s sx126x_check_device_ready:%d err:%d",__FUNCTION__,address,err);
     return err;
   }
 
@@ -141,6 +159,7 @@ static rt_err_t sx126x_read_registers(
 
   err = rt_spi_send_then_recv(lora_radio->spi_device, msg, sizeof(msg), buffer, size);
   if (err != RT_EOK) {
+    LOG_E("%s rt_spi_send_then_recv:%d err:%d",__FUNCTION__,address,err);
     return err;
   }
 
@@ -166,6 +185,7 @@ static rt_err_t sx126x_write_registers(
 
   rt_err_t err = sx126x_check_device_ready(lora_radio);
   if (err != RT_EOK) {
+    LOG_E("%s sx126x_check_device_ready%d err:%d",__FUNCTION__,address,err);
     return err;
   }
 
@@ -173,6 +193,7 @@ static rt_err_t sx126x_write_registers(
 
   err = rt_spi_send_then_send(lora_radio->spi_device, msg, sizeof(msg), buffer, size);
   if (err != RT_EOK) {
+    LOG_E("%s rt_spi_send_then_send%d err:%d",__FUNCTION__,address,err);
     return err;
   }
 
@@ -391,6 +412,7 @@ static rt_err_t sx126x_lora_radio_ops_sleep(
 
   lora_radio->mode = MODE_SLEEP;
 
+  LOG_I("lora radio sleep");
   return RT_EOK;
 }
 
@@ -497,11 +519,13 @@ static rt_err_t sx126x_lora_radio_ops_wakeup(lora_radio_t *lora_radio) {
 
   rt_size_t size = rt_spi_send(lora_radio->spi_device, msg, sizeof(msg));
   if (size == 0) {
+    LOG_E("sx126x_lora_radio_ops_wakeup rt_spi_send err");
     return -RT_ERROR;
   }
 
   rt_err_t err = sx126x_wait_on_busy(lora_radio);
   if (err != RT_EOK) {
+    LOG_E("sx126x_lora_radio_ops_wakeup busy err %d",err);
     return err;
   }
 

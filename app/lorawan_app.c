@@ -28,7 +28,7 @@ static config_t config = {
   .lora_radio_name = "lora-radio.sx126x0",
   .region          = LORAMAC_REGION_CN470,
   .class           = CLASS_A,
-  .tx_duty_cycle   = 10000,
+  .tx_duty_cycle   = 15000,
 };
 
 rt_err_t lorawan_app(){

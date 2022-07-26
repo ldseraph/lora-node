@@ -530,6 +530,11 @@ rt_err_t lorawan_deserialize_data(lorawan_t* lorawan, lorawan_rx_msg_t* msg) {
   msg->dev_addr |= ((uint32_t)msg->phy_msg.buffer[index++] << 16);
   msg->dev_addr |= ((uint32_t)msg->phy_msg.buffer[index++] << 24);
 
+  if (msg->dev_addr != lorawan->dev_addr) {
+    LOG_E("lorawan addr(%x) msg addr(%x) err", lorawan->dev_addr, msg->dev_addr);
+    return -RT_EINVAL;
+  }
+  
   msg->fctrl.value = msg->phy_msg.buffer[index++];
 
   msg->fcnt_down = msg->phy_msg.buffer[index++];
@@ -577,22 +582,6 @@ rt_err_t lorawan_deserialize_data(lorawan_t* lorawan, lorawan_rx_msg_t* msg) {
     return -RT_EINVAL;
   }
 
-  // TODO:Check if it is a multicast message
-  int32_t last_down = lorawan->fcnt_list.fcnt_down;
-  int32_t fcnt_diff = (int32_t)((int64_t)msg->fcnt_down - (int64_t)(last_down & 0x0000FFFF));
-  if (fcnt_diff > 0) {
-    lorawan->fcnt_list.fcnt_down = last_down + fcnt_diff;
-  } else if (fcnt_diff == 0) {
-    // return -RT_EINVAL;
-  } else {
-    lorawan->fcnt_list.fcnt_down = (last_down & 0xFFFF0000) + 0x10000 + msg->fcnt_down;
-  }
-
-  if (msg->dev_addr != lorawan->dev_addr) {
-    LOG_E("lorawan addr(%x) msg addr(%x) err", lorawan->dev_addr, msg->dev_addr);
-    return -RT_EINVAL;
-  }
-
   msg->key = lorawan->secure_element.app_s_key;
   if (msg->fport == 0) {
     msg->key = lorawan->secure_element.nwk_s_enc_key;
@@ -616,6 +605,17 @@ rt_err_t lorawan_deserialize_data(lorawan_t* lorawan, lorawan_rx_msg_t* msg) {
     msg->mac_payload.buffer);
   if (err != RT_EOK) {
     return err;
+  }
+
+  // TODO:Check if it is a multicast message
+  int32_t last_down = lorawan->fcnt_list.fcnt_down;
+  int32_t fcnt_diff = (int32_t)((int64_t)msg->fcnt_down - (int64_t)(last_down & 0x0000FFFF));
+  if (fcnt_diff > 0) {
+    lorawan->fcnt_list.fcnt_down = last_down + fcnt_diff;
+  } else if (fcnt_diff == 0) {
+    // return -RT_EINVAL;
+  } else {
+    lorawan->fcnt_list.fcnt_down = (last_down & 0xFFFF0000) + 0x10000 + msg->fcnt_down;
   }
 
   return RT_EOK;

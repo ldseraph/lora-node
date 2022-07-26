@@ -392,6 +392,7 @@ static rt_err_t lora_radio_dio_irq_process(lora_radio_t *lora_radio, lora_radio_
   // }
 
   if ((irq & IRQ_RX_TX_TIMEOUT) == IRQ_RX_TX_TIMEOUT) {
+    LOG_E("IRQ_RX_TX_TIMEOUT %x",lora_radio->mode);
     err = rt_timer_stop(lora_radio->timeout_timer);
     if (err != RT_EOK) {
       LOG_E("dio irq process timer stop err: %d", err);
@@ -459,11 +460,14 @@ rt_err_t lora_radio_event_recv(rt_device_t dev, lora_radio_event_t *ev) {
     }
     break;
   case EV_LORA_RADIO_TIMEOUT:
+    LOG_E("EV_LORA_RADIO_TIMEOUT");
     if (lora_radio->mode == MODE_TX) {
       *ev |= LORA_RADIO_EVENT_TX_TIMEOUT;
     } else if (lora_radio->mode == MODE_RX) {
       *ev |= LORA_RADIO_EVENT_RX_TIMEOUT;
     }
+
+    *ev |= LORA_RADIO_EVENT_RADIO_TIMEOUT;
 
     lora_radio->mode = MODE_STDBY;
     break;

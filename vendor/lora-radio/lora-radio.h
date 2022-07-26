@@ -249,6 +249,7 @@ typedef enum {
   LORA_RADIO_EVENT_RX_TIMEOUT        = (0x1 << 3),
   LORA_RADIO_EVENT_RX_ERROR          = (0x1 << 4),
   LORA_RADIO_EVENT_RX_HEAD_DETECTION = (0x1 << 5),
+  LORA_RADIO_EVENT_RADIO_TIMEOUT     = (0x1 << 6),
 } lora_radio_event_t;
 
 lora_radio_t *lora_radio_new(lora_radio_device_t *);

@@ -273,9 +273,20 @@ static int gd32_putc(struct rt_serial_device *serial, char ch) {
 
   RT_ASSERT(serial != RT_NULL);
   uart = (struct gd32_uart *)serial->parent.user_data;
+  
+  uint32_t i = 0;
+  while ((usart_flag_get(uart->uart_periph, USART_FLAG_TBE) == RESET)) {
+    if (i++ > 10000) {
+      return -1;
+    }
+  };
 
   usart_data_transmit(uart->uart_periph, ch);
+  i = 0;
   while ((usart_flag_get(uart->uart_periph, USART_FLAG_TC) == RESET)) {
+    if (i++ > 10000) {
+      return -1;
+    }
   };
 
   return 1;

@@ -101,22 +101,22 @@ typedef struct {
 
 typedef enum {
   /*!
-     * LoRaWAN device class A
-     *
-     * LoRaWAN Specification V1.0.2, chapter 3
-     */
+   * LoRaWAN device class A
+   *
+   * LoRaWAN Specification V1.0.2, chapter 3
+   */
   CLASS_A = 0x00,
   /*!
-     * LoRaWAN device class B
-     *
-     * LoRaWAN Specification V1.0.2, chapter 8
-     */
+   * LoRaWAN device class B
+   *
+   * LoRaWAN Specification V1.0.2, chapter 8
+   */
   CLASS_B = 0x01,
   /*!
-     * LoRaWAN device class C
-     *
-     * LoRaWAN Specification V1.0.2, chapter 17
-     */
+   * LoRaWAN device class C
+   *
+   * LoRaWAN Specification V1.0.2, chapter 17
+   */
   CLASS_C = 0x02,
 } lorawan_class_t;
 
@@ -234,6 +234,7 @@ struct lorawan_s {
   rt_bool_t                 joined;
   rt_bool_t                 adr_on;
   rt_bool_t                 ack_requested;
+  rt_bool_t                 first_boot;
   lorawan_rx_slot_t         rx_slot;
   uint32_t                  join_nonce;
   uint16_t                  dev_nonce;
@@ -272,6 +273,8 @@ struct lorawan_s {
 
   rt_tick_t tx_done_tick;
   rt_time_t rx_done_tick;
+
+  void (*exception_handle)();
 };
 
 lorawan_t*        lorawan_new(rt_device_t, lorawan_region_type_t);

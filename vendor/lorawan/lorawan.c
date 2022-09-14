@@ -2,7 +2,7 @@
 #define DBG_SECTION_NAME "lorawan"
 #include <ulog.h>
 
-#define LORAMAC_APP_TX_MQ_MAX_SIZE 10
+#define LORAMAC_APP_TX_MQ_MAX_SIZE 1
 #define LORAWAN_EVENT_THREAD_STACK_SIZE 2048
 #define EV_LORAWAN_RX_WINDOW1 (1 << 1)
 #define EV_LORAWAN_RX_WINDOW2 (1 << 2)
@@ -22,6 +22,7 @@ region_map_t region_map[] = { {
 static rt_err_t lorawan_proc_tx_done(lorawan_t* lorawan) {
   rt_err_t err;
 
+  LOG_I("tx done");
   if (lorawan->current_class != CLASS_C) {
     err = lora_radio_sleep(lorawan->lora_radio_device);
     if (err != RT_EOK) {
@@ -136,17 +137,14 @@ static rt_err_t lorawan_proc_rx_done(lorawan_t* lorawan, lorawan_rx_msg_t* msg) 
       goto err_handle;
     }
 
-    lorawan->joined = RT_TRUE;
+    lorawan->joined     = RT_TRUE;
+    lorawan->first_boot = RT_FALSE;
 
     LOG_I("joined");
   } break;
   case LORAWAN_FTYPE_DATA_CONFIRMED_DOWN:
   case LORAWAN_FTYPE_DATA_UNCONFIRMED_DOWN: {
     uint32_t max_phy_payload = lorawan->region->get_max_phy_payload(lorawan);
-
-    if (lorawan->joined) {
-      lorawan->confirmed_count = 0;
-    }
 
     if (((int16_t)((int16_t)size - (int16_t)LORAMAC_FRAME_PAYLOAD_OVERHEAD_SIZE) > (int16_t)max_phy_payload)
         || (size < LORAMAC_FRAME_PAYLOAD_MIN_SIZE)) {
@@ -160,7 +158,13 @@ static rt_err_t lorawan_proc_rx_done(lorawan_t* lorawan, lorawan_rx_msg_t* msg) 
       goto err_handle;
     }
 
+    if (lorawan->joined) {
+      lorawan->confirmed_count = 0;
+    }
+
     if (msg->fport != 0) {
+      // sub fport size
+      msg->mac_payload.size -= 1;
     }
 
   } break;
@@ -191,8 +195,9 @@ static void lorawan_event_thread(void* param) {
       LOG_E("lora radio event recv err %d", err);
       continue;
     }
-    // LOG_I("lora radio");
+
     if ((ev & LORA_RADIO_EVENT_TX_DONE) == LORA_RADIO_EVENT_TX_DONE) {
+      LOG_I("lora radio event tx done");
       err = lorawan_proc_tx_done(lorawan);
       if (err != RT_EOK) {
         LOG_E("process tx done err(%d).", err);
@@ -200,6 +205,7 @@ static void lorawan_event_thread(void* param) {
     }
 
     if ((ev & LORA_RADIO_EVENT_TX_TIMEOUT) == LORA_RADIO_EVENT_TX_TIMEOUT) {
+      LOG_I("lora radio event tx timeout");
       if (lorawan->current_class != CLASS_C) {
         err = lora_radio_sleep(lorawan->lora_radio_device);
         if (err != RT_EOK) {
@@ -211,6 +217,7 @@ static void lorawan_event_thread(void* param) {
     }
 
     if ((ev & LORA_RADIO_EVENT_RX_DONE) == LORA_RADIO_EVENT_RX_DONE) {
+      LOG_I("lora radio event rx done");
       lorawan->rx_done_tick = rt_tick_get();
 
       lorawan_rx_msg_t* rx_msg = rt_malloc(sizeof(lorawan_rx_msg_t));
@@ -227,6 +234,7 @@ static void lorawan_event_thread(void* param) {
 
       if (rx_msg->phy_msg.size == 0) {
         LOG_E("lora radio read err.");
+        rt_free(rx_msg);
         continue;
       }
 
@@ -242,6 +250,7 @@ static void lorawan_event_thread(void* param) {
 
     if (((ev & LORA_RADIO_EVENT_RX_TIMEOUT) == LORA_RADIO_EVENT_RX_TIMEOUT)
         || ((ev & LORA_RADIO_EVENT_RX_ERROR) == LORA_RADIO_EVENT_RX_ERROR)) {
+      LOG_I("lora radio event rx timeout or error");
       // TODO: config dummy
       if (!lorawan->joined) {
         LOG_E("joined:%d rx window%d timeout", lorawan->joined, lorawan->rx_slot + 1);
@@ -257,8 +266,16 @@ static void lorawan_event_thread(void* param) {
     }
 
     if ((ev & LORA_RADIO_EVENT_RX_HEAD_DETECTION) == LORA_RADIO_EVENT_RX_HEAD_DETECTION) {
+      LOG_I("lora radio event rx head detection");
       if (lorawan->rx_slot == RX_SLOT_WIN_1) {
         rt_timer_stop(lorawan->rx_window_timer2);
+      }
+    }
+
+    if ((ev & LORA_RADIO_EVENT_RADIO_TIMEOUT) == LORA_RADIO_EVENT_RADIO_TIMEOUT) {
+      LOG_E("lora radio event rx radio timeout: panic");
+      if (lorawan->exception_handle) {
+        lorawan->exception_handle();
       }
     }
   }
@@ -268,24 +285,31 @@ static void lorawan_event_thread(void* param) {
 
 static void lorwan_app_tx(void* param) {
   lorawan_t* lorawan = (lorawan_t*)param;
-  if (lorawan->confirmed_count > 20) {
+  if (lorawan->confirmed_count > 10) {
     lorawan->joined          = RT_FALSE;
     lorawan->confirmed_count = 0;
   }
 
+  uint32_t tx_duty_cycle = lorawan->tx_duty_cycle;
   if (lorawan->joined) {
+    LOG_I("tx fcont:%d", lorawan->fcnt_list.fcnt_up);
     rt_event_send(&lorawan->irq_event, EV_LORAWAN_TX_APP);
   } else {
+    LOG_I("join");
     rt_event_send(&lorawan->irq_event, EV_LORAWAN_JOIN);
+    if (!lorawan->first_boot) {
+      LOG_E("rejoin");
+      tx_duty_cycle *= 3;
+    }
   }
 
-  int      random_cycle  = lorawan_rand(-1000, 1000);
-  uint32_t tx_duty_cycle = rt_tick_from_millisecond(lorawan->tx_duty_cycle + random_cycle);
+  int      random_cycle     = lorawan_rand(-2000, 2000);
+  uint32_t tx_duty_cycle_ms = rt_tick_from_millisecond(tx_duty_cycle + random_cycle);
 
   rt_err_t err = rt_timer_control(
     lorawan->app_tx_timer,
     RT_TIMER_CTRL_SET_TIME,
-    &tx_duty_cycle);
+    &tx_duty_cycle_ms);
   if (err != RT_EOK) {
     LOG_E("app tx control err: %d", err);
     return;
@@ -347,6 +371,8 @@ lorawan_t* lorawan_new(
   lorawan->adr_on            = RT_TRUE;
   lorawan->ack_requested     = RT_FALSE;
   lorawan->confirmed_count   = 0;
+  lorawan->first_boot        = RT_TRUE;
+  lorawan->exception_handle  = RT_NULL;
 
   rt_bool_t find = RT_FALSE;
   for (uint32_t i = 0; i < sizeof(region_map); i++) {
@@ -449,7 +475,7 @@ lorawan_t* lorawan_new(
   lorawan->app_tx_timer = rt_timer_create("lorawan:app-tx",
                                           lorwan_app_tx,
                                           lorawan,
-                                          1,
+                                          100,
                                           RT_TIMER_FLAG_ONE_SHOT);
   if (lorawan->app_tx_timer == RT_NULL) {
     return RT_NULL;
@@ -591,12 +617,19 @@ static rt_err_t lorawan_next_channel(
   }
 
   if (enable_channel_count == 0) {
-    return RT_EINVAL;
+    return -RT_EINVAL;
   }
 
   uint32_t random = lorawan_rand(0, enable_channel_count - 1);
+  if (lorawan->dr == DR_0) {
+    random = lorawan_rand(0, enable_channel_count - 2);
+  }
 
-  *channel = enabled_channels[random];
+  if (lorawan->confirmed_count > 5) {
+    *channel = enabled_channels[enable_channel_count - 1];
+  } else {
+    *channel = enabled_channels[random];
+  }
 
   return RT_EOK;
 }
@@ -665,7 +698,7 @@ rt_err_t lorawan_set_channels_mask(
 
 static rt_err_t lorawan_join(lorawan_t* lorawan) {
   rt_err_t err = RT_EOK;
-
+  LOG_I("join start");
   switch (lorawan->activation_type) {
   case ACTIVATION_TYPE_OTAA: {
     // TODO: memory pool
@@ -679,17 +712,19 @@ static rt_err_t lorawan_join(lorawan_t* lorawan) {
 
     err = lorawan_serializer_join_request(lorawan, send_buffer);
     if (err != RT_EOK) {
+      rt_free(send_buffer);
       LOG_E("lorawan serializer join requese err(%d)!", err);
       return err;
     }
 
+    lorawan->dr = DR_0;
+
     err = lorawan_delay_tx(lorawan, send_buffer, LORAWAN_JOIN_REQUEST_SIZE);
+    rt_free(send_buffer);
     if (err != RT_EOK) {
       LOG_E("lorawan tx delay err(%d)!", err);
       return err;
     }
-
-    rt_free(send_buffer);
 
   } break;
   case ACTIVATION_TYPE_ABP:
@@ -697,6 +732,7 @@ static rt_err_t lorawan_join(lorawan_t* lorawan) {
     LOG_E("activation_type(%d) not yet implemented!", lorawan->activation_type);
     break;
   }
+  LOG_I("join end");
 
   return err;
 }
@@ -728,9 +764,9 @@ static rt_err_t lorawan_send_msg(
   lorawan_t*        lorawan,
   lorawan_tx_msg_t* msg) {
   if (!lorawan->joined) {
-    return -RT_ERROR;
+    return -RT_EEMPTY;
   }
-
+  LOG_I("send msg start");
   lorawan_msg_fctrl(lorawan, &msg->fctrl);
 
   // lorawan_serializer_cmds(lorawan,msg)
@@ -746,8 +782,17 @@ static rt_err_t lorawan_send_msg(
 
   rt_err_t err = lorawan_serializer_data(lorawan, msg);
   if (err != RT_EOK) {
-    LOG_E("lorawan serializer join requese err(%d)!", err);
+    LOG_E("lorawan send msg serializer err(%d)!", err);
     return err;
+  }
+
+  lora_radio_lora_rx_status_t lora_rx_status = lora_radio_get_lora_rx_status(lorawan->lora_radio_device);
+  if (lora_rx_status.rssi < -100) {
+    lorawan->dr = DR_0;
+  } else if (lorawan->confirmed_count > 5) {
+    lorawan->dr = DR_0;
+  } else {
+    lorawan->dr = (lorawan_region_dr_t)lorawan_rand(DR_0, DR_5);
   }
 
   err = lorawan_delay_tx(lorawan, msg->phy_msg.buffer, msg->phy_msg.size);
@@ -759,6 +804,7 @@ static rt_err_t lorawan_send_msg(
   if (lorawan->joined && (msg->ftype == LORAWAN_FTYPE_DATA_CONFIRMED_UP)) {
     lorawan->confirmed_count++;
   }
+  LOG_I("send msg end");
 
   return RT_EOK;
 }
@@ -806,7 +852,8 @@ rt_err_t lorawan_send_unconfirmed(
 }
 
 static lorawan_t* g_lorawan;
-rt_err_t          lorawan_run(lorawan_t* lorawan) {
+
+rt_err_t lorawan_run(lorawan_t* lorawan) {
   rt_err_t    err;
   rt_uint32_t lorawan_event;
 
@@ -838,15 +885,15 @@ rt_err_t          lorawan_run(lorawan_t* lorawan) {
       err = lorawan_join(lorawan);
       if (err != RT_EOK) {
         LOG_E("thread ev:join err: %d", err);
-        continue;
+        return err;
       }
     } break;
     case EV_LORAWAN_RX_WINDOW1: {
       lorawan_region_rx_config_args_t params = {
-                 .slot       = RX_SLOT_WIN_1,
-                 .continuous = RT_FALSE,
+        .slot       = RX_SLOT_WIN_1,
+        .continuous = RT_FALSE,
       };
-
+      LOG_I("EV_LORAWAN_RX_WINDOW1");
       rt_err_t err = lorawan->region->rx_config(lorawan, &params);
       if (err != RT_EOK) {
         LOG_E("rx window1 rx config err(%d)!", err);
@@ -865,10 +912,10 @@ rt_err_t          lorawan_run(lorawan_t* lorawan) {
       if (lorawan->rx_slot == RX_SLOT_WIN_1) {
         break;
       }
-
+      LOG_I("EV_LORAWAN_RX_WINDOW2");
       lorawan_region_rx_config_args_t params = {
-                 .slot       = RX_SLOT_WIN_2,
-                 .continuous = RT_FALSE,
+        .slot       = RX_SLOT_WIN_2,
+        .continuous = RT_FALSE,
       };
 
       rt_err_t err = lorawan->region->rx_config(lorawan, &params);
@@ -896,14 +943,15 @@ rt_err_t          lorawan_run(lorawan_t* lorawan) {
       }
 
       err = lorawan_send_msg(lorawan, tx_msg);
-      if (err == -RT_EBUSY) {
-        err = rt_mb_urgent(lorawan->tx_mb, (rt_uint32_t)tx_msg);
-        if (err != RT_EOK) {
-          LOG_E("thread ev:urgent mb err(%d)", err);
-          return err;
-        }
-      }
       lorawan_free_mb_msg((lorawan_mb_msg_t*)tx_msg);
+      if (err != RT_EOK) {
+        LOG_I("thread send msg err %d", err);
+        if (err == -RT_EEMPTY) {
+          LOG_I("not join");
+          break;
+        }
+        return err;
+      }
     } break;
     default:
       LOG_E("thread ev:invalid ev(%d)", lorawan_event);
@@ -915,6 +963,11 @@ rt_err_t          lorawan_run(lorawan_t* lorawan) {
 }
 
 static void lorawan_info() {
+  if (g_lorawan == RT_NULL) {
+    rt_kprintf("lorawan no init\n");
+    return;
+  }
+
   rt_kprintf("\033[32m");
   lora_radio_lora_rx_status_t lora_rx_status = lora_radio_get_lora_rx_status(g_lorawan->lora_radio_device);
   rt_kprintf("  snr:        %d\n", lora_rx_status.snr);

@@ -201,7 +201,7 @@ void gd32_uart_gpio_init(struct gd32_uart *uart) {
   /* TODO 初始化 RX */
   port      = uart->rx_port;
   gpio_pin  = uart->rx_pin;
-  GPIO_Mode = GPIO_MODE_IN_FLOATING;
+  GPIO_Mode = GPIO_MODE_IPD;
   gpio_init(port, GPIO_Mode, GPIO_OSPEED_50MHZ, gpio_pin);
 
   NVIC_SetPriority(uart->irqn, 0);
@@ -277,7 +277,7 @@ static int gd32_putc(struct rt_serial_device *serial, char ch) {
   uint32_t i = 0;
   while ((usart_flag_get(uart->uart_periph, USART_FLAG_TBE) == RESET)) {
     if (i++ > 10000) {
-      return -1;
+      return 1;
     }
   };
 
@@ -285,7 +285,7 @@ static int gd32_putc(struct rt_serial_device *serial, char ch) {
   i = 0;
   while ((usart_flag_get(uart->uart_periph, USART_FLAG_TC) == RESET)) {
     if (i++ > 10000) {
-      return -1;
+      return 1;
     }
   };
 
@@ -314,7 +314,7 @@ static void uart_isr(struct rt_serial_device *serial) {
 
   RT_ASSERT(uart != RT_NULL);
 
-  if ((usart_flag_get(uart->uart_periph, USART_FLAG_RBNE) != RESET) && (usart_flag_get(uart->uart_periph, USART_FLAG_RBNE) != RESET)) {
+  if (usart_flag_get(uart->uart_periph, USART_FLAG_RBNE) != RESET) {
     rt_hw_serial_isr(serial, RT_SERIAL_EVENT_RX_IND);
     /* Clear RXNE interrupt flag */
     usart_flag_clear(uart->uart_periph, USART_FLAG_RBNE);

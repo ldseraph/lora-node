@@ -3,7 +3,7 @@
 #define DBG_SECTION_NAME "tension"
 #include <ulog.h>
 
-#define TENSION_APP_THREAD_DELAY_MS 10000
+#define TENSION_APP_THREAD_DELAY_MS 15000
 #define TENSION_APP_LED_DELAY_MS 500
 #define TENSION_APP_THREAD_STACK_SIZE 2048
 #define TENSION_APP_SENSOR_BQ24040_NAME "bq24040:0"
@@ -25,11 +25,18 @@ static void tension_app_thread_handle(void* param) {
   lorawan_t* lorawan = (lorawan_t*)param;
   rt_err_t   err;
 
-  rt_base_t gpio_red   = rt_pin_get(TENSION_APP_GPIO_RED);
-  rt_base_t gpio_green = rt_pin_get(TENSION_APP_GPIO_GREEN);
+  lorawan->exception_handle = board_panic;
+
+  uint32_t  old_battery_value = 100;
+  rt_base_t gpio_red          = rt_pin_get(TENSION_APP_GPIO_RED);
+  // rt_base_t gpio_green = rt_pin_get(TENSION_APP_GPIO_GREEN);
 
   rt_pin_mode(gpio_red, GPIO_MODE_OUT_PP);
-  rt_pin_mode(gpio_green, GPIO_MODE_OUT_PP);
+  // rt_pin_mode(gpio_green, GPIO_MODE_OUT_PP);
+  // rt_pin_write(gpio_red, PIN_HIGH);
+  rt_pin_write(gpio_red, PIN_LOW);
+  rt_thread_mdelay(500);
+  rt_pin_mode(gpio_red, GPIO_MODE_IN_FLOATING);
 
   rt_device_t sensor_bq24040 = rt_device_find(TENSION_APP_SENSOR_BQ24040_NAME);
   if (sensor_bq24040 == RT_NULL) {
@@ -58,27 +65,46 @@ static void tension_app_thread_handle(void* param) {
   for (;;) {
     rt_sem_take(tension_app_sem, RT_WAITING_FOREVER);
 
-    uint32_t battery_value;
-    rt_device_read(sensor_bq24040, 0, &battery_value, sizeof(battery_value));
-
-    // LOG_I("%s: battery value: %d", TENSION_APP_SENSOR_BQ24040_NAME, battery_value);
-    battery_value = (battery_value - 150) / 3;
-
-    rt_bool_t charge_ok   = sensor_bq24040_charge_ok(sensor_bq24040);
-
-    if (battery_value > 10 || charge_ok) {
-      battery_value = 10;
+    uint32_t battery_value = 0;
+    for (uint8_t i = 0; (old_battery_value > (2 + battery_value)) && i < 5; i++) {
+      rt_device_read(sensor_bq24040, 0, &battery_value, sizeof(battery_value));
+      if (i) {
+        rt_thread_mdelay(100);
+      }
     }
+    old_battery_value = battery_value;
+
+    LOG_I("%s: battery value: %d", TENSION_APP_SENSOR_BQ24040_NAME, battery_value);
+
+    // if (battery_value < 170) {
+    //   battery_value = 0;
+    // } else if (battery_value > 200) {
+    //   battery_value = 10;
+    // } else {
+    //   battery_value = (battery_value - 170) / 3;
+    // }
+
+    // rt_bool_t charge_ok = sensor_bq24040_charge_ok(sensor_bq24040);
+
+    // if (charge_ok) {
+    //   battery_value = 10;
+    // }
 
     int32_t tension_value;
     rt_device_read(sensor_ads1232, 0, &tension_value, sizeof(tension_value));
+    LOG_I("%s: tension value: 0x%x", TENSION_APP_SENSOR_ADS1232_NAME, tension_value);
 
-    float ain       = (float)(tension_value * (((0.5 * 3300)) / 0x7fffff));
+    float ain       = (float)(tension_value * ((0.5 * 3300) / 0x7fffff));
     float slope     = 0.3273;
     float intercept = -0.0032;
     float pull_kg   = (float)((ain - intercept)) / (slope);
 
     lorawan_mb_msg_t* msg = lorawan_malloc_mb_msg(sizeof(battery_value) + sizeof(pull_kg));
+
+    if (msg == RT_NULL) {
+      LOG_E("OOM");
+      continue;
+    }
 
     uint32_t* battery = (uint32_t*)msg->buffer;
     float*    pull    = (float*)&msg->buffer[sizeof(battery_value)];
@@ -87,18 +113,18 @@ static void tension_app_thread_handle(void* param) {
     *pull    = pull_kg;
 
     // LOG_I("battery_value %d", battery_value);
-    rt_bool_t is_charging = sensor_bq24040_is_charging(sensor_bq24040);
+    // rt_bool_t is_charging = sensor_bq24040_is_charging(sensor_bq24040);
 
-    uint32_t gpio_high;
-    if (battery_value < 4 || (is_charging && !charge_ok)) {
-      rt_pin_write(gpio_red, PIN_HIGH);
-      rt_pin_write(gpio_green, PIN_LOW);
-      gpio_high = gpio_red;
-    } else {
-      rt_pin_write(gpio_green, PIN_HIGH);
-      rt_pin_write(gpio_red, PIN_LOW);
-      gpio_high = gpio_green;
-    }
+    // uint32_t gpio_high;
+    // if (battery_value < 4 || (is_charging && !charge_ok)) {
+    // rt_pin_write(gpio_red, PIN_HIGH);
+    // rt_pin_write(gpio_green, PIN_LOW);
+    // gpio_high = gpio_red;
+    // } else {
+    // rt_pin_write(gpio_green, PIN_HIGH);
+    // rt_pin_write(gpio_red, PIN_LOW);
+    // gpio_high = gpio_green;
+    // }
 
     err = lorawan_send_confirmed(lorawan, 1, msg);
     if (err != RT_EOK) {
@@ -106,9 +132,9 @@ static void tension_app_thread_handle(void* param) {
       continue;
     }
 
-    rt_thread_mdelay(TENSION_APP_LED_DELAY_MS);
+    // rt_thread_mdelay(TENSION_APP_LED_DELAY_MS);
 
-    rt_pin_write(gpio_high, PIN_LOW);
+    // rt_pin_write(gpio_high, PIN_LOW);
   }
 
   return;

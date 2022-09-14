@@ -4,7 +4,7 @@
 #define DBG_SECTION_NAME "tilt"
 #include <ulog.h>
 
-#define TILT_APP_THREAD_DELAY_MS 10000
+#define TILT_APP_THREAD_DELAY_MS 15000
 #define TILT_APP_LED_DELAY_MS 500
 #define TILT_APP_THREAD_STACK_SIZE 2048
 #define TILT_APP_SENSOR_BQ24040_NAME "bq24040:0"
@@ -70,6 +70,8 @@ static void tilt_app_thread_handle(void* param) {
   rt_base_t gpio_red = rt_pin_get(TILT_APP_GPIO_RED);
   rt_pin_mode(gpio_red, GPIO_MODE_OUT_PP);
   rt_pin_write(gpio_red, PIN_LOW);
+  rt_thread_mdelay(500);
+  rt_pin_mode(gpio_red, GPIO_MODE_IN_FLOATING);
 
   rt_device_t sensor_bq24040 = rt_device_find(TILT_APP_SENSOR_BQ24040_NAME);
   if (sensor_bq24040 == RT_NULL) {
@@ -97,24 +99,31 @@ static void tilt_app_thread_handle(void* param) {
 
   for (;;) {
     rt_sem_take(tilt_app_sem, RT_WAITING_FOREVER);
-    rt_pin_write(gpio_red, PIN_LOW);
+    // rt_pin_write(gpio_red, PIN_LOW);
 
     uint32_t battery_value;
     rt_device_read(sensor_bq24040, 0, &battery_value, sizeof(battery_value));
 
-    // LOG_I("%s: battery value: %d", TILT_APP_SENSOR_BQ24040_NAME, battery_value);
-    battery_value = (battery_value - 150) / 3;
+    LOG_I("%s: battery value: %d", TILT_APP_SENSOR_BQ24040_NAME, battery_value);
 
-    if (battery_value > 10) {
-      battery_value = 10;
-    }
+    // if (battery_value < 155) {
+    //   battery_value = 0;
+    // } else if (battery_value > 185) {
+    //   battery_value = 10;
+    // } else {
+    //   battery_value = (battery_value - 155) / 3;
+    // }
 
     sensor_adxl355_data_t sensor_adxl355_data;
 
     rt_device_read(sensor_adxl355, 0, &sensor_adxl355_data, sizeof(sensor_adxl355_data));
 
     lorawan_mb_msg_t* msg = lorawan_malloc_mb_msg(sizeof(tilt_app_data_packet_t));
-
+    if (msg == RT_NULL) {
+      LOG_E("OOM");
+      continue;
+    }
+    
     tilt_app_data_packet_t* packet = (tilt_app_data_packet_t*)msg->buffer;
 
     packet->battery      = battery_value;
@@ -126,9 +135,9 @@ static void tilt_app_thread_handle(void* param) {
       continue;
     }
 
-    rt_thread_mdelay(TILT_APP_LED_DELAY_MS);
+    // rt_thread_mdelay(TILT_APP_LED_DELAY_MS);
 
-    rt_pin_write(gpio_red, PIN_HIGH);
+    // rt_pin_write(gpio_red, PIN_HIGH);
   }
 
   return;
